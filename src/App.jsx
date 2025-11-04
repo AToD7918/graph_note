@@ -211,8 +211,8 @@ function GraphView({
       nodeRelSize={6}
       backgroundColor="#0a0a0a"
       linkColor={defaultLinkColor}
-      linkDirectionalArrowLength={4}
-      linkDirectionalArrowRelPos={0.98}
+      linkDirectionalArrowLength={6}
+      linkDirectionalArrowRelPos={0.5}
       linkCurvature={linkCurvature}
       cooldownTicks={90}
       d3VelocityDecay={0.3}
