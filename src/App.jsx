@@ -3,21 +3,21 @@ import ForceGraph2D from 'react-force-graph-2d';
 import { useMeasure } from './hooks/useMeasure';
 import { toId, genId } from './utils/helpers';
 import { createLocalStorageAdapter, createRemoteAdapter } from './adapters/storage';
+import { initializeSeedNotes } from './adapters/noteStorage';
 import { seedCore5 } from './data/seedData';
 import { computeRadialAnchors, makeCurvatureAccessor } from './graph/layout';
 import { makeNodeCanvasObject, defaultLinkColor } from './graph/renderers';
+import { NotePanel } from './components/NotePanel';
 
 /**
- * Graph-First Paper Notes (V1.1, 모듈화 준비 버전)
+ * Graph-First Paper Notes (V1.2, 컴포넌트 분리 버전)
  * -------------------------------------------------------------
  * 목표
- * 1) 현재는 단일 파일이지만, 훗날 페이지/컴포넌트 분리(import)로 확장하기 쉽도록
- *    의존 관계를 느슨하게 하고, 재사용 가능한 훅/유틸/프리젠테이션 컴포넌트를 분리.
- * 2) 기존 기능(그래프 우선, 노드 = 노트, 컨텍스트 메뉴, 우측 노트 패널, 설정/추가 모달,
- *    동심원 고정 + 부분 force, 링크 곡률 A안, 라벨 glow 차단, 즉시 스타일 반영)을 유지.
- * 3) 모든 주요 블록에 한국어 주석 추가.
+ * 1) 노트 패널을 별도 컴포넌트로 분리하여 기능 확장 용이
+ * 2) 모듈화된 구조로 유지보수성 향상
+ * 3) 기존 기능 유지 (그래프 우선, 동심원 레이아웃, 컨텍스트 메뉴 등)
  *
- * 분리 가이드(향후 디렉토리 구조 제안)
+ * 분리된 컴포넌트
  * - src/
  *   - adapters/storage.js     (Local/Remote 어댑터) ✅
  *   - hooks/useMeasure.js     (리사이즈 관찰) ✅
@@ -25,12 +25,9 @@ import { makeNodeCanvasObject, defaultLinkColor } from './graph/renderers';
  *   - data/seedData.js        (초기 데이터) ✅
  *   - graph/layout.js         (동심원 앵커 계산, 곡률 계산) ✅
  *   - graph/renderers.js      (nodeCanvasObject 등 그리기 로직) ✅
- *   - components/GraphView.jsx(그래프 래퍼)
- *   - components/ContextMenu.jsx
- *   - components/SettingsModal.jsx
- *   - components/AddNodeModal.jsx
- *   - components/RightPanel.jsx
- *   - pages/App.jsx           (상태 리프트 + 조립)
+ *   - components/
+ *     - NotePanel.jsx         (노트 패널 - 확장 기능 추가 예정) ✅
+ *   - App.jsx                 (메인 앱 - 상태 관리 + 조립)
  */
 
 /********************** [components] 컨텍스트 메뉴 **********************/
@@ -38,7 +35,7 @@ function ContextMenu({ visible, x, y, nodeId, nodeStyles, setStyle, lockedIds, t
   if (!visible || !nodeId) return null;
   const current = nodeStyles[nodeId] || { shape: 'circle', size: 'm', color: null, labelPinned: false, glow: false };
   return (
-    <div className="absolute z-50 bg-[#111827] text-white rounded-xl shadow-xl border border-white/10 p-2 w-56"
+    <div className="context-menu"
          style={{ left: x, top: y }} onClick={(e)=>e.stopPropagation()}>
       <div className="text-xs uppercase opacity-70 px-1 pb-2">Node: {nodeId}</div>
       <button className="w-full text-left px-2 py-1 rounded-lg hover:bg-white/10" onClick={()=>{ toggleLock(nodeId); onClose(); }}>
@@ -78,8 +75,8 @@ function ContextMenu({ visible, x, y, nodeId, nodeStyles, setStyle, lockedIds, t
 function SettingsModal({ open, onClose, storageMode, setStorageMode, clearLocal }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={onClose}>
-      <div className="bg-[#111827] text-white rounded-xl border border-white/10 w-[480px] p-4 shadow-xl" onClick={(e)=>e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content modal-content-settings" onClick={(e)=>e.stopPropagation()}>
         <div className="text-lg font-semibold mb-3">Settings</div>
         <div className="space-y-4 text-sm">
           <div>
@@ -110,17 +107,17 @@ function SettingsModal({ open, onClose, storageMode, setStorageMode, clearLocal 
 function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={onClose}>
-      <div className="bg-[#111827] text-white rounded-xl border border-white/10 w-[520px] p-4 shadow-xl" onClick={(e)=>e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content modal-content-add-node" onClick={(e)=>e.stopPropagation()}>
         <div className="text-lg font-semibold mb-3">Add Node</div>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <label className="flex flex-col gap-1">
             <span className="opacity-70">Title</span>
-            <input className="bg-black/40 border border-white/10 rounded px-2 py-1" value={form.title} onChange={(e)=>setForm({...form, title:e.target.value})} placeholder="e.g., New Paper" />
+            <input className="input-field" value={form.title} onChange={(e)=>setForm({...form, title:e.target.value})} placeholder="e.g., New Paper" />
           </label>
           <label className="flex flex-col gap-1">
             <span className="opacity-70">Group</span>
-            <select className="bg-black/40 border border-white/10 rounded px-2 py-1" value={form.group} onChange={(e)=>setForm({...form, group:e.target.value})}>
+            <select className="input-field" value={form.group} onChange={(e)=>setForm({...form, group:e.target.value})}>
               <option value={1}>Core</option>
               <option value={2}>Forward</option>
               <option value={3}>Backward</option>
@@ -128,14 +125,14 @@ function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
           </label>
           <label className="flex flex-col gap-1">
             <span className="opacity-70">Link Type</span>
-            <select className="bg-black/40 border border-white/10 rounded px-2 py-1" value={form.linkType} onChange={(e)=>setForm({...form, linkType:e.target.value})}>
+            <select className="input-field" value={form.linkType} onChange={(e)=>setForm({...form, linkType:e.target.value})}>
               <option value="forward">Core/기준 → 새 노드</option>
               <option value="backward">새 노드 → Core/기준</option>
             </select>
           </label>
           <label className="flex flex-col gap-1">
             <span className="opacity-70">Connect To</span>
-            <select className="bg-black/40 border border-white/10 rounded px-2 py-1" value={form.connectTo} onChange={(e)=>setForm({...form, connectTo:e.target.value})}>
+            <select className="input-field" value={form.connectTo} onChange={(e)=>setForm({...form, connectTo:e.target.value})}>
               {graph.nodes.map(n=> (<option key={n.id} value={n.id}>{n.id}</option>))}
             </select>
           </label>
@@ -145,32 +142,6 @@ function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
           <button className="px-3 py-1 rounded bg-teal-500 text-black font-semibold hover:bg-teal-400" onClick={addNode}>Add</button>
         </div>
       </div>
-    </div>
-  );
-}
-
-/********************** [components] 우측 노트 패널 **********************/
-function RightPanel({ selectedNote, onClose, onChange }) {
-  return (
-    <div className="hidden lg:block border-l border-white/10 bg-[#0f0f10]">
-      {selectedNote ? (
-        <div className="h-full flex flex-col">
-          <div className="p-3 border-b border-white/10 flex items-center justify-between">
-            <div className="font-semibold truncate pr-3">{selectedNote.title}</div>
-            <button className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20" onClick={onClose}>Close</button>
-          </div>
-          <div className="p-3 text-sm opacity-80">
-            <div className="mb-2 opacity-70">ID: <span className="font-mono">{selectedNote.id}</span></div>
-            <textarea className="w-full h-[60vh] bg-black/40 border border-white/10 rounded p-2 text-sm"
-                      placeholder="여기에 노트 내용을 작성하세요"
-                      value={selectedNote.note || ''}
-                      onChange={(e)=>onChange({ note: e.target.value })}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="h-full flex items-center justify-center text-sm opacity-60">노드를 클릭해 노트를 열람하세요</div>
-      )}
     </div>
   );
 }
@@ -280,6 +251,39 @@ export default function App() {
   const [nodeStyles, setNodeStyles] = useState(initial.nodeStyles || {});
   const [lockedIds, setLockedIds] = useState(new Set(initial.lockedIds || []));
 
+  /** IndexedDB 초기화 (Seed Notes) */
+  useEffect(() => {
+    const initNotes = async () => {
+      try {
+        const data = seedCore5();
+        console.log('🌱 Seed 데이터 로드:', data);
+        
+        if (data.detailedNotes) {
+          console.log('📝 상세 노트 개수:', Object.keys(data.detailedNotes).length);
+          
+          // 각 노트의 한글 포함 여부 확인
+          Object.entries(data.detailedNotes).forEach(([id, content]) => {
+            const hasKorean = /[\u3131-\u314e\u314f-\u3163\uac00-\ud7a3]/g.test(content);
+            console.log(`  - ${id}: ${hasKorean ? '✅' : '❌'} 한글 포함, 길이 ${content.length}`);
+          });
+          
+          await initializeSeedNotes(data.detailedNotes);
+          console.log('📦 IndexedDB 초기화 완료 (Seed Notes)');
+        }
+      } catch (error) {
+        console.error('❌ IndexedDB 초기화 실패:', error);
+      }
+    };
+    
+    // 첫 로드 시에만 초기화 (localStorage에 데이터가 없을 때)
+    if (!loaded) {
+      console.log('🚀 첫 로드 - IndexedDB 초기화 시작');
+      initNotes();
+    } else {
+      console.log('✅ localStorage 데이터 존재 - IndexedDB 초기화 스킵');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   /** 참조/사이즈 */
   const [containerRef, size] = useMeasure();
   const fgRef = useRef(null);
@@ -315,10 +319,11 @@ export default function App() {
 
   /** 노드 추가 폼 */
   const [addForm, setAddForm] = useState({ title: '', group: 2, linkType: 'forward', connectTo: 'Core' });
+  /** 노드 추가 */
   const addNode = () => {
     const id = genId();
     setGraph((g)=>({
-      nodes: [...g.nodes, { id, group: Number(addForm.group)||2, title: addForm.title||'Untitled', note: '' }],
+      nodes: [...g.nodes, { id, group: Number(addForm.group)||2, title: addForm.title||'Untitled', summary: '' }],
       links: [...g.links, { source: addForm.linkType==='forward'? (addForm.connectTo||'Core') : id, target: addForm.linkType==='forward'? id : (addForm.connectTo||'Core'), type: addForm.linkType }]
     }));
     setLockedIds((s)=> new Set([...Array.from(s), id]));
@@ -402,7 +407,7 @@ export default function App() {
         {/* 토글 미리보기 메뉴 - 노드 클릭 시 마우스 근처에 표시 */}
         {selectedNote && !notePanelOpen && previewPosition.x > 0 && (
           <div 
-            className="absolute bg-[#1a1a1a] border border-white/20 rounded-lg shadow-2xl p-3 w-64 z-50"
+            className="preview-menu"
             style={{
               left: Math.min(previewPosition.x + 10, size.width - 270),
               top: Math.min(previewPosition.y + 10, size.height - 120),
@@ -420,7 +425,7 @@ export default function App() {
               >✕</button>
             </div>
             <div className="text-xs opacity-70 mb-3 line-clamp-2">
-              {selectedNote.note || '노트 내용이 없습니다.'}
+              {selectedNote.summary || '요약 내용이 없습니다.'}
             </div>
             <button 
               className="w-full px-3 py-1.5 rounded bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 text-sm font-medium transition-colors"
@@ -433,7 +438,7 @@ export default function App() {
 
         {/* 좌하단: 설정 버튼 */}
         <button 
-          className="absolute left-4 bottom-4 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur border border-white/10 flex items-center justify-center z-30"
+          className="btn-circular btn-settings"
           onClick={()=>setShowSettings(true)} 
           title="Settings"
         >
@@ -442,7 +447,7 @@ export default function App() {
 
         {/* 우하단: 노드 추가 버튼 */}
         <button 
-          className="absolute right-4 bottom-4 w-12 h-12 rounded-full bg-teal-500 hover:bg-teal-400 text-black font-bold text-2xl shadow-lg z-30"
+          className="btn-circular btn-add-node"
           onClick={()=>setShowAdd(true)} 
           title="Add node"
         >
@@ -450,38 +455,13 @@ export default function App() {
         </button>
       </div>
 
-      {/* 우측 노트 패널 - 슬라이드 인/아웃 */}
-      <div 
-        className={`absolute top-0 right-0 h-full bg-[#0f0f10] border-l border-white/10 transition-transform duration-300 z-20 ${
-          notePanelOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-        style={{
-          width: 'max(360px, 40vw)'
-        }}
-      >
-        {selectedNote && (
-          <div className="h-full flex flex-col">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <div className="font-semibold truncate pr-3">{selectedNote.title}</div>
-              <button 
-                className="text-xs px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 transition-colors"
-                onClick={()=>setNotePanelOpen(false)}
-              >Close</button>
-            </div>
-            <div className="p-4 flex-1 flex flex-col">
-              <div className="mb-2 text-xs opacity-70">
-                ID: <span className="font-mono">{selectedNote.id}</span>
-              </div>
-              <textarea 
-                className="flex-1 w-full bg-black/40 border border-white/10 rounded p-3 text-sm resize-none focus:outline-none focus:border-teal-500/50 transition-colors"
-                placeholder="여기에 노트 내용을 작성하세요..."
-                value={selectedNote.note || ''}
-                onChange={(e)=>updateNote({ note: e.target.value })}
-              />
-            </div>
-          </div>
-        )}
-      </div>
+      {/* 우측 노트 패널 - 새로운 NotePanel 컴포넌트 사용 */}
+      <NotePanel
+        selectedNote={selectedNote}
+        onClose={() => setNotePanelOpen(false)}
+        onChange={updateNote}
+        isOpen={notePanelOpen}
+      />
 
       {/* 설정 모달 */}
       <SettingsModal open={showSettings} onClose={()=>setShowSettings(false)} storageMode={storageMode} setStorageMode={setStorageMode} clearLocal={clearLocal} />

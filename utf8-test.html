@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UTF-8 테스트</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            padding: 20px;
+            background: #0a0a0a;
+            color: white;
+        }
+        .test-section {
+            background: #1a1a1a;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        h2 {
+            color: #4ade80;
+        }
+        code {
+            background: #000;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #60a5fa;
+        }
+    </style>
+</head>
+<body>
+    <h1>? UTF-8 인코딩 테스트</h1>
+    
+    <div class="test-section">
+        <h2>1. 한글 표시 테스트</h2>
+        <p>핵심 논문 요약</p>
+        <p>Core 논문이 참고한 기초 이론입니다.</p>
+        <p>연구 배경 및 동기</p>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 이모지 테스트</h2>
+        <p>? ? ? ? ? ? ? ?? ??</p>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 혼합 텍스트</h2>
+        <p>Core Paper 상세 노트</p>
+        <p>Later uses Core - 후속 연구 1</p>
+        <p>Prior work 1 - 선행 연구</p>
+    </div>
+
+    <div class="test-section">
+        <h2>4. IndexedDB 저장/로드 테스트</h2>
+        <button onclick="testIndexedDB()" style="padding: 10px 20px; background: #4ade80; color: black; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            테스트 실행
+        </button>
+        <pre id="result" style="margin-top: 10px; background: #000; padding: 10px; border-radius: 4px; overflow-x: auto;"></pre>
+    </div>
+
+    <script>
+        async function testIndexedDB() {
+            const result = document.getElementById('result');
+            result.textContent = '테스트 중...\n';
+
+            try {
+                // IndexedDB 열기
+                const db = await new Promise((resolve, reject) => {
+                    const request = indexedDB.open('test-utf8-db', 1);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains('notes')) {
+                            db.createObjectStore('notes', { keyPath: 'id' });
+                        }
+                    };
+                });
+
+                result.textContent += '? IndexedDB 열기 성공\n\n';
+
+                // 테스트 데이터 저장
+                const testData = {
+                    id: 'test-1',
+                    content: '# Core Paper 상세 노트\n\n## 연구 배경\n이 논문은 해당 분야의 핵심 연구입니다.\n\n한글 테스트: 가나다라마바사 ?'
+                };
+
+                const transaction = db.transaction(['notes'], 'readwrite');
+                const store = transaction.objectStore('notes');
+                store.put(testData);
+
+                await new Promise((resolve, reject) => {
+                    transaction.oncomplete = resolve;
+                    transaction.onerror = () => reject(transaction.error);
+                });
+
+                result.textContent += '? 데이터 저장 성공\n';
+                result.textContent += '저장된 데이터:\n' + JSON.stringify(testData, null, 2) + '\n\n';
+
+                // 데이터 읽기
+                const readTransaction = db.transaction(['notes'], 'readonly');
+                const readStore = readTransaction.objectStore('notes');
+                const loadedData = await new Promise((resolve, reject) => {
+                    const request = readStore.get('test-1');
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+
+                result.textContent += '? 데이터 로드 성공\n';
+                result.textContent += '로드된 데이터:\n' + JSON.stringify(loadedData, null, 2) + '\n\n';
+
+                // 내용 비교
+                if (testData.content === loadedData.content) {
+                    result.textContent += '? UTF-8 인코딩 정상 (저장/로드 일치)\n';
+                } else {
+                    result.textContent += '? UTF-8 인코딩 문제 발견\n';
+                    result.textContent += '원본: ' + testData.content + '\n';
+                    result.textContent += '로드: ' + loadedData.content + '\n';
+                }
+
+                // 정리
+                db.close();
+                indexedDB.deleteDatabase('test-utf8-db');
+
+            } catch (error) {
+                result.textContent += '? 에러 발생: ' + error.message + '\n';
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
