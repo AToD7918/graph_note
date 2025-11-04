@@ -6,7 +6,7 @@ import { createLocalStorageAdapter, createRemoteAdapter } from './adapters/stora
 import { initializeSeedNotes } from './adapters/noteStorage';
 import { seedCore5 } from './data/seedData';
 import { computeRadialAnchors, makeCurvatureAccessor } from './graph/layout';
-import { makeNodeCanvasObject, defaultLinkColor } from './graph/renderers';
+import { makeNodeCanvasObject, makeNodePointerAreaPaint, defaultLinkColor } from './graph/renderers';
 import { NotePanel } from './components/NotePanel';
 import { ZoomControls } from './components/ZoomControls';
 import { Minimap } from './components/Minimap';
@@ -184,6 +184,7 @@ function GraphView({
 
   // 캔버스 노드 그리기 콜백 구성
   const nodeCanvasObject = useMemo(() => makeNodeCanvasObject(nodeStyles, lockedIds), [nodeStyles, lockedIds]);
+  const nodePointerAreaPaint = useMemo(() => makeNodePointerAreaPaint(nodeStyles), [nodeStyles]);
   // 링크 곡률
   const linkCurvature = useMemo(() => makeCurvatureAccessor(derivedData), [derivedData]);
 
@@ -217,6 +218,7 @@ function GraphView({
       d3VelocityDecay={0.3}
       nodeLabel={(n)=>n.title||n.id}
       nodeCanvasObject={nodeCanvasObject}
+      nodePointerAreaPaint={nodePointerAreaPaint}
       onNodeClick={onNodeClick}
       onNodeHover={onNodeHover}
       onNodeRightClick={onNodeRightClick}

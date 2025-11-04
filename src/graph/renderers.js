@@ -145,3 +145,31 @@ export function makeNodeCanvasObject(nodeStyles, lockedIds) {
  */
 export const defaultLinkColor = (l) => 
   l.type === 'forward' ? 'rgba(94,234,212,0.9)' : 'rgba(165,180,252,0.9)';
+
+/**
+ * 클릭 판정용 영역을 그리는 함수
+ * react-force-graph-2d의 nodePointerAreaPaint 프로퍼티에 연결
+ */
+export function makeNodePointerAreaPaint(nodeStyles) {
+  return (node, color, ctx, globalScale) => {
+    const style = nodeStyles[node.id] || {};
+    const sizeKey = style.size || 'm';
+    const base = sizeKey === 's' ? 4 : (sizeKey === 'l' ? 12 : 7);
+    const r = Math.max(2.5, base / (globalScale * 0.42));
+    const shape = style.shape || 'circle';
+
+    ctx.fillStyle = color; // 고유 픽셀색
+    // 선두께 영향 제거
+    ctx.lineWidth = 0;
+    ctx.shadowBlur = 0;
+
+    if (shape === 'circle') {
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+      ctx.fill();
+    } else {
+      const s = r * 2.0;
+      ctx.fillRect(node.x - s / 2, node.y - s / 2, s, s);
+    }
+  };
+}
