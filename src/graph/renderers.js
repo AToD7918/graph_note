@@ -31,8 +31,8 @@ export function makeNodeCanvasObject(nodeStyles, lockedIds) {
     const sizeKey = style.size || 'm';  // 's', 'm', 'l'
     const base = sizeKey === 's' ? 4 : (sizeKey === 'l' ? 12 : 7);  // 기본 크기
     // globalScale: 줌 레벨 (확대하면 커짐)
-    // 0.42: 적절한 크기 조정 계수
-    const r = Math.max(2.5, base / (globalScale * 0.42));  // 반지름
+    // 노드 크기가 줌과 함께 확대/축소되도록 변경
+    const r = base;  // 반지름 (줌과 함께 스케일링)
     
     // ? 모양과 색상
     const shape = style.shape || 'circle';  // 'circle' 또는 'square'
@@ -151,11 +151,11 @@ export const defaultLinkColor = (l) =>
  * react-force-graph-2d의 nodePointerAreaPaint 프로퍼티에 연결
  */
 export function makeNodePointerAreaPaint(nodeStyles) {
-  return (node, color, ctx, globalScale) => {
+  return (node, color, ctx) => {
     const style = nodeStyles[node.id] || {};
     const sizeKey = style.size || 'm';
     const base = sizeKey === 's' ? 4 : (sizeKey === 'l' ? 12 : 7);
-    const r = Math.max(2.5, base / (globalScale * 0.42));
+    const r = base;  // 클릭 영역도 줌과 함께 스케일링
     const shape = style.shape || 'circle';
 
     ctx.fillStyle = color; // 고유 픽셀색

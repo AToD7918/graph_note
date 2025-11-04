@@ -357,9 +357,45 @@ function GraphView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
+  // 초기 로드시에만 fit 실행 (derivedData 변경 시 제외)
   useEffect(() => { 
-    if (size.width && size.height) setTimeout(fit, 0); 
-  }, [size, derivedData, fit]);
+    if (size.width && size.height) {
+      const timer = setTimeout(fit, 0);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size.width, size.height]);
+
+  // 노드 드래그 시 화면 경계 체크 및 자동 축소
+  const onNodeDragRef = useRef(null);
+  const onNodeDrag = useCallback((node) => {
+    if (!fgRef.current || !containerRef.current) return;
+    
+    const padding = 50; // 경계 여유 공간
+    const { width, height } = containerRef.current.getBoundingClientRect();
+    
+    // 노드가 화면 밖으로 나가는지 체크
+    const screenCoords = fgRef.current.graph2ScreenCoords(node.x, node.y);
+    const isOutOfBounds = 
+      screenCoords.x < padding || 
+      screenCoords.x > width - padding || 
+      screenCoords.y < padding || 
+      screenCoords.y > height - padding;
+    
+    if (isOutOfBounds) {
+      // 스로틀링: 100ms마다 한 번만 실행
+      const now = Date.now();
+      if (onNodeDragRef.current && now - onNodeDragRef.current < 100) return;
+      onNodeDragRef.current = now;
+      
+      // 현재 화면 중심을 유지하면서 줌 아웃
+      const currentZoom = fgRef.current.zoom();
+      const newZoom = currentZoom * 0.5;
+      
+      // 줌만 변경 (화면 중심 유지)
+      fgRef.current.zoom(newZoom, 100);
+    }
+  }, [fgRef, containerRef]);
 
   // 크기가 0이면 윈도우 크기 사용 (초기 렌더링)
   const displayWidth = size.width || window.innerWidth;
@@ -377,17 +413,18 @@ function GraphView({
       linkDirectionalArrowLength={6}
       linkDirectionalArrowRelPos={0.5}
       linkCurvature={linkCurvature}
-      cooldownTicks={90}
+      cooldownTicks={0}
+      d3AlphaDecay={0.02}
+      d3VelocityDecay={0.3}
       onNodeHover={onNodeHover}
       onNodeClick={onNodeClick}
       onNodeRightClick={onNodeRightClick}
       onBackgroundClick={onBackgroundClick}
       onZoom={onZoom}
-      d3VelocityDecay={0.3}
       nodeLabel={(n)=>n.title||n.id}
       nodeCanvasObject={nodeCanvasObject}
       nodePointerAreaPaint={nodePointerAreaPaint}
-      onEngineStop={fit}
+      onNodeDrag={onNodeDrag}
     />
   );
 }
