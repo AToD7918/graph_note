@@ -8,6 +8,8 @@ import { seedCore5 } from './data/seedData';
 import { computeRadialAnchors, makeCurvatureAccessor } from './graph/layout';
 import { makeNodeCanvasObject, defaultLinkColor } from './graph/renderers';
 import { NotePanel } from './components/NotePanel';
+import { ZoomControls } from './components/ZoomControls';
+import { Minimap } from './components/Minimap';
 
 /**
  * Graph-First Paper Notes (V1.2, 컴포넌트 분리 버전)
@@ -256,31 +258,18 @@ export default function App() {
     const initNotes = async () => {
       try {
         const data = seedCore5();
-        console.log('🌱 Seed 데이터 로드:', data);
-        
         if (data.detailedNotes) {
-          console.log('📝 상세 노트 개수:', Object.keys(data.detailedNotes).length);
-          
-          // 각 노트의 한글 포함 여부 확인
-          Object.entries(data.detailedNotes).forEach(([id, content]) => {
-            const hasKorean = /[\u3131-\u314e\u314f-\u3163\uac00-\ud7a3]/g.test(content);
-            console.log(`  - ${id}: ${hasKorean ? '✅' : '❌'} 한글 포함, 길이 ${content.length}`);
-          });
-          
           await initializeSeedNotes(data.detailedNotes);
           console.log('📦 IndexedDB 초기화 완료 (Seed Notes)');
         }
       } catch (error) {
-        console.error('❌ IndexedDB 초기화 실패:', error);
+        console.error('IndexedDB 초기화 실패:', error);
       }
     };
     
     // 첫 로드 시에만 초기화 (localStorage에 데이터가 없을 때)
     if (!loaded) {
-      console.log('🚀 첫 로드 - IndexedDB 초기화 시작');
       initNotes();
-    } else {
-      console.log('✅ localStorage 데이터 존재 - IndexedDB 초기화 스킵');
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -295,6 +284,9 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [previewPosition, setPreviewPosition] = useState({ x: 0, y: 0 }); // 토글 메뉴 위치
   const [notePanelOpen, setNotePanelOpen] = useState(false); // 노트 패널 열림 상태
+  
+  /** 줌 레벨 상태 */
+  const [zoomLevel, setZoomLevel] = useState(1.0);
 
   /** 저장: 상태 변경 시 자동 저장 */
   useEffect(() => { storage.save && storage.save({ nodes: graph.nodes, links: graph.links, nodeStyles, lockedIds: Array.from(lockedIds) }); }, [graph, nodeStyles, lockedIds, storage]);
@@ -368,6 +360,51 @@ export default function App() {
     setPreviewPosition({ x: 0, y: 0 }); // 토글 메뉴 숨기기
   };
 
+  /** 줌 레벨 변경 핸들러 */
+  const handleZoomChange = (newZoom) => {
+    setZoomLevel(newZoom);
+  };
+
+  /** 키보드 단축키 (Zoom & Fit) */
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl + Plus: Zoom In
+      if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) {
+        e.preventDefault();
+        if (fgRef.current) {
+          const currentZoom = fgRef.current.zoom();
+          const newZoom = Math.min(currentZoom * 1.2, 4);
+          fgRef.current.zoom(newZoom, 400);
+          setZoomLevel(newZoom);
+        }
+      }
+      // Ctrl + Minus: Zoom Out
+      if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+        e.preventDefault();
+        if (fgRef.current) {
+          const currentZoom = fgRef.current.zoom();
+          const newZoom = Math.max(currentZoom / 1.2, 0.5);
+          fgRef.current.zoom(newZoom, 400);
+          setZoomLevel(newZoom);
+        }
+      }
+      // Space: Fit to Screen
+      if (e.key === ' ' && !e.target.closest('textarea') && !e.target.closest('input')) {
+        e.preventDefault();
+        if (fgRef.current) {
+          fgRef.current.zoomToFit(400, 40);
+          setTimeout(() => {
+            const newZoom = fgRef.current.zoom();
+            setZoomLevel(newZoom);
+          }, 450);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   /******************** 렌더 ********************/
   return (
     <div className="w-full h-screen bg-[#0a0a0a] text-white relative overflow-hidden">
@@ -378,7 +415,7 @@ export default function App() {
           right: notePanelOpen ? 'max(360px, 40vw)' : '0'
         }}
       >
-        <div ref={containerRef} className="w-full h-full">
+        <div ref={containerRef} className="graph-container">
           <GraphView
             containerRef={containerRef}
             size={size}
@@ -390,6 +427,21 @@ export default function App() {
             onNodeClickWithPosition={handleNodeClickWithPosition}
           />
         </div>
+
+        {/* Zoom Controls */}
+        <ZoomControls 
+          fgRef={fgRef} 
+          zoom={zoomLevel}
+          onZoomChange={handleZoomChange}
+        />
+
+        {/* Minimap */}
+        <Minimap 
+          fgRef={fgRef}
+          graph={derivedData}
+          size={size}
+          notePanelOpen={notePanelOpen}
+        />
 
         {/* 컨텍스트 메뉴 */}
         <ContextMenu

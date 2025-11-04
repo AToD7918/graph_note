@@ -2,64 +2,54 @@ import React, { useState, useEffect } from 'react';
 import { loadNoteDetail, saveNoteDetail } from '../adapters/noteStorage';
 
 /**
- * ? ³ëÆ® ÆĞ³Î ÄÄÆ÷³ÍÆ®
+ * ğŸ“ ë…¸íŠ¸ íŒ¨ë„ ì»´í¬ë„ŒíŠ¸
  * 
- * ? ¿ªÇÒ:
- * - ¼±ÅÃµÈ ³ëµåÀÇ ¿ä¾à(summary) + »ó¼¼ ³ëÆ®(detailedNote) ÆíÁı
- * - ¿ä¾à: localStorage (Åä±Û ¸Ş´º¿¡ Ç¥½Ã)
- * - »ó¼¼ ³ëÆ®: IndexedDB (³ëÆ® ÆĞ³Î¿¡¼­¸¸ ·Îµå)
+ * ğŸ¯ ì—­í• :
+ * - ì„ íƒëœ ë…¸ë“œì˜ ìš”ì•½(summary) + ìƒì„¸ ë…¸íŠ¸(detailedNote) í¸ì§‘
+ * - ìš”ì•½: localStorage (í† ê¸€ ë©”ë‰´ì— í‘œì‹œ)
+ * - ìƒì„¸ ë…¸íŠ¸: IndexedDB (ë…¸íŠ¸ íŒ¨ë„ì—ì„œë§Œ ë¡œë“œ)
  * 
- * ? Props:
- * @param {Object} selectedNote - ÇöÀç ¼±ÅÃµÈ ³ëµå { id, title, summary, group }
- * @param {Function} onClose - ÆĞ³Î ´İ±â ÇÚµé·¯
- * @param {Function} onChange - ¿ä¾à º¯°æ ÇÚµé·¯ (localStorage)
- * @param {boolean} isOpen - ÆĞ³Î ¿­¸² »óÅÂ
+ * ğŸ“¦ Props:
+ * @param {Object} selectedNote - í˜„ì¬ ì„ íƒëœ ë…¸ë“œ { id, title, summary, group }
+ * @param {Function} onClose - íŒ¨ë„ ë‹«ê¸° í•¸ë“¤ëŸ¬
+ * @param {Function} onChange - ìš”ì•½ ë³€ê²½ í•¸ë“¤ëŸ¬ (localStorage)
+ * @param {boolean} isOpen - íŒ¨ë„ ì—´ë¦¼ ìƒíƒœ
  */
 export function NotePanel({ selectedNote, onClose, onChange, isOpen }) {
-  // ¿ä¾à (summary) - localStorage
+  // ìš”ì•½ (summary) - localStorage
   const [localSummary, setLocalSummary] = useState('');
   
-  // »ó¼¼ ³ëÆ® (detailedNote) - IndexedDB
+  // ìƒì„¸ ë…¸íŠ¸ (detailedNote) - IndexedDB
   const [detailedNote, setDetailedNote] = useState('');
   
-  // ·Îµù »óÅÂ
+  // ë¡œë”© ìƒíƒœ
   const [isLoading, setIsLoading] = useState(false);
   
-  // ÀúÀå »óÅÂ
+  // ì €ì¥ ìƒíƒœ
   const [lastSaved, setLastSaved] = useState(null);
   const [saveStatus, setSaveStatus] = useState(''); // 'saving' | 'saved' | ''
   
-  // ¿öµå Ä«¿îÆ®
+  // ì›Œë“œ ì¹´ìš´íŠ¸
   const [summaryWords, setSummaryWords] = useState(0);
   const [detailedWords, setDetailedWords] = useState(0);
 
-  // IndexedDB¿¡¼­ »ó¼¼ ³ëÆ® ·Îµå
+  // IndexedDBì—ì„œ ìƒì„¸ ë…¸íŠ¸ ë¡œë“œ
   const loadDetailedNote = async (nodeId) => {
     setIsLoading(true);
     try {
-      console.log(`? ³ëÆ® ·Îµå ½ÃÀÛ: ${nodeId}`);
       const content = await loadNoteDetail(nodeId);
-      
-      console.log(`? ·ÎµåµÈ ³»¿ë:`, {
-        nodeId,
-        length: content?.length || 0,
-        preview: content?.substring(0, 50) || '(¾øÀ½)',
-        hasKorean: content ? /[\u3131-\u314e\u314f-\u3163\uac00-\ud7a3]/g.test(content) : false,
-        hasEmoji: content ? /[\u{1F300}-\u{1F9FF}]/gu.test(content) : false
-      });
-      
       setDetailedNote(content || '');
       updateWordCount(content || '', 'detailed');
-      console.log(`? ³ëÆ® ·Îµå ¿Ï·á: ${nodeId}`);
+      console.log(`ğŸ“– ìƒì„¸ ë…¸íŠ¸ ë¡œë“œ: ${nodeId}`);
     } catch (error) {
-      console.error('? »ó¼¼ ³ëÆ® ·Îµå ½ÇÆĞ:', error);
+      console.error('ìƒì„¸ ë…¸íŠ¸ ë¡œë“œ ì‹¤íŒ¨:', error);
       setDetailedNote('');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ¿öµå Ä«¿îÆ® °è»ê
+  // ì›Œë“œ ì¹´ìš´íŠ¸ ê³„ì‚°
   const updateWordCount = (text, type) => {
     const words = text.trim().split(/\s+/).filter(w => w.length > 0);
     if (type === 'summary') {
@@ -69,20 +59,20 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen }) {
     }
   };
 
-  // ¼±ÅÃµÈ ³ëÆ® º¯°æ ½Ã µ¥ÀÌÅÍ ·Îµå
+  // ì„ íƒëœ ë…¸íŠ¸ ë³€ê²½ ì‹œ ë°ì´í„° ë¡œë“œ
   useEffect(() => {
     if (selectedNote && isOpen) {
-      // ¿ä¾à ·Îµå (localStorage¿¡¼­ ÀÌ¹Ì ·ÎµåµÊ)
+      // ìš”ì•½ ë¡œë“œ (localStorageì—ì„œ ì´ë¯¸ ë¡œë“œë¨)
       setLocalSummary(selectedNote.summary || '');
       updateWordCount(selectedNote.summary || '', 'summary');
       
-      // »ó¼¼ ³ëÆ® ·Îµå (IndexedDB¿¡¼­ Lazy Loading)
+      // ìƒì„¸ ë…¸íŠ¸ ë¡œë“œ (IndexedDBì—ì„œ Lazy Loading)
       loadDetailedNote(selectedNote.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNote, isOpen]);
 
-  // ¿ä¾à º¯°æ ÇÚµé·¯ (localStorage)
+  // ìš”ì•½ ë³€ê²½ í•¸ë“¤ëŸ¬ (localStorage)
   const handleSummaryChange = (e) => {
     const newValue = e.target.value;
     setLocalSummary(newValue);
@@ -92,26 +82,26 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen }) {
     setLastSaved(new Date());
   };
 
-  // »ó¼¼ ³ëÆ® º¯°æ ÇÚµé·¯ (IndexedDB)
+  // ìƒì„¸ ë…¸íŠ¸ ë³€ê²½ í•¸ë“¤ëŸ¬ (IndexedDB)
   const handleDetailedNoteChange = async (e) => {
     const newValue = e.target.value;
     setDetailedNote(newValue);
     updateWordCount(newValue, 'detailed');
     
-    // IndexedDB¿¡ ÀúÀå
+    // IndexedDBì— ì €ì¥
     setSaveStatus('saving');
     try {
       await saveNoteDetail(selectedNote.id, newValue);
       setSaveStatus('saved');
       setLastSaved(new Date());
-      console.log(`? »ó¼¼ ³ëÆ® ÀúÀå: ${selectedNote.id}`);
+      console.log(`ğŸ’¾ ìƒì„¸ ë…¸íŠ¸ ì €ì¥: ${selectedNote.id}`);
     } catch (error) {
-      console.error('»ó¼¼ ³ëÆ® ÀúÀå ½ÇÆĞ:', error);
+      console.error('ìƒì„¸ ë…¸íŠ¸ ì €ì¥ ì‹¤íŒ¨:', error);
       setSaveStatus('error');
     }
   };
 
-  // ÆĞ³ÎÀÌ ´İÇôÀÖÀ¸¸é ·»´õ¸µÇÏÁö ¾ÊÀ½
+  // íŒ¨ë„ì´ ë‹«í˜€ìˆìœ¼ë©´ ë Œë”ë§í•˜ì§€ ì•ŠìŒ
   if (!isOpen || !selectedNote) {
     return null;
   }
@@ -126,14 +116,14 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen }) {
       }}
     >
       <div className="h-full flex flex-col">
-        {/* Çì´õ */}
+        {/* í—¤ë” */}
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <div className="flex-1 min-w-0">
             <div className="font-semibold truncate pr-3">{selectedNote.title}</div>
             <div className="text-xs opacity-50 mt-1">
-              {selectedNote.group === 1 ? '? Core' : 
-               selectedNote.group === 2 ? '?? Forward' : 
-               '?? Backward'}
+              {selectedNote.group === 1 ? 'ğŸ¯ Core' : 
+               selectedNote.group === 2 ? 'â¡ï¸ Forward' : 
+               'â¬…ï¸ Backward'}
             </div>
           </div>
           <button 
@@ -144,7 +134,7 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen }) {
           </button>
         </div>
 
-        {/* ¸ŞÅ¸ Á¤º¸ */}
+        {/* ë©”íƒ€ ì •ë³´ */}
         <div className="px-4 py-2 border-b border-white/10 bg-black/20">
           <div className="flex items-center justify-between text-xs opacity-70">
             <div>
@@ -160,25 +150,25 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen }) {
                   saveStatus === 'saved' ? 'text-green-400' :
                   saveStatus === 'error' ? 'text-red-400' : ''
                 }`}>
-                  {saveStatus === 'saving' && '? Saving...'}
-                  {saveStatus === 'saved' && `? ${lastSaved.toLocaleTimeString('ko-KR', { 
+                  {saveStatus === 'saving' && 'ğŸ’¾ Saving...'}
+                  {saveStatus === 'saved' && `âœ“ ${lastSaved.toLocaleTimeString('ko-KR', { 
                     hour: '2-digit', 
                     minute: '2-digit' 
                   })}`}
-                  {saveStatus === 'error' && '? Error'}
+                  {saveStatus === 'error' && 'âŒ Error'}
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* ³ëÆ® ÆíÁı ¿µ¿ª */}
+        {/* ë…¸íŠ¸ í¸ì§‘ ì˜ì—­ */}
         <div className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto">
-          {/* ¿ä¾à ÀÔ·Â¶õ (localStorage) */}
+          {/* ìš”ì•½ ì…ë ¥ë€ (localStorage) */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-semibold opacity-90">
-                ? Summary (Åä±Û ¸Ş´º¿¡ Ç¥½Ã)
+                ğŸ“‹ Summary (í† ê¸€ ë©”ë‰´ì— í‘œì‹œ)
               </label>
               <span className="text-xs opacity-50">
                 {summaryWords} words
@@ -186,23 +176,23 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen }) {
             </div>
             <textarea 
               className="w-full h-24 bg-black/40 border border-white/10 rounded p-3 text-sm resize-none focus:outline-none focus:border-teal-500/50 transition-colors"
-              placeholder="³ëµå Å¬¸¯ ½Ã º¸¿©Áú ÂªÀº ¿ä¾àÀ» ÀÛ¼ºÇÏ¼¼¿ä..."
+              placeholder="ë…¸ë“œ í´ë¦­ ì‹œ ë³´ì—¬ì§ˆ ì§§ì€ ìš”ì•½ì„ ì‘ì„±í•˜ì„¸ìš”..."
               value={localSummary}
               onChange={handleSummaryChange}
             />
             <div className="text-xs opacity-50">
-              ? ÂªÀº ¿ä¾àÀ¸·Î ³ëÆ®ÀÇ ÇÙ½ÉÀ» ÆÄ¾ÇÇÒ ¼ö ÀÖ½À´Ï´Ù
+              ğŸ’¡ ì§§ì€ ìš”ì•½ìœ¼ë¡œ ë…¸íŠ¸ì˜ í•µì‹¬ì„ íŒŒì•…í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤
             </div>
           </div>
 
-          {/* ±¸ºĞ¼± */}
+          {/* êµ¬ë¶„ì„  */}
           <div className="border-t border-white/10"></div>
 
-          {/* »ó¼¼ ³ëÆ® ÀÔ·Â¶õ (IndexedDB) */}
+          {/* ìƒì„¸ ë…¸íŠ¸ ì…ë ¥ë€ (IndexedDB) */}
           <div className="flex-1 flex flex-col gap-2 min-h-0">
             <div className="flex items-center justify-between">
               <label className="text-sm font-semibold opacity-90">
-                ? Detailed Note (»ó¼¼ ³»¿ë)
+                ğŸ“ Detailed Note (ìƒì„¸ ë‚´ìš©)
               </label>
               <div className="flex items-center gap-2">
                 <span className="text-xs opacity-50">
@@ -210,34 +200,34 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen }) {
                 </span>
                 {isLoading && (
                   <span className="text-xs text-blue-400">
-                    ? Loading...
+                    ğŸ”„ Loading...
                   </span>
                 )}
               </div>
             </div>
             <textarea 
               className="flex-1 w-full bg-black/40 border border-white/10 rounded p-3 text-sm resize-none focus:outline-none focus:border-teal-500/50 transition-colors min-h-[300px]"
-              placeholder="»ó¼¼ÇÑ ³ëÆ® ³»¿ëÀ» ÀÛ¼ºÇÏ¼¼¿ä...
+              placeholder="ìƒì„¸í•œ ë…¸íŠ¸ ë‚´ìš©ì„ ì‘ì„±í•˜ì„¸ìš”...
 
-? ÆÁ:
-- ¿¬±¸ ¹è°æ ¹× µ¿±â
-- ÇÙ½É ¾ÆÀÌµğ¾î ¹× ¹æ¹ı·Ğ
-- ½ÇÇè °á°ú ¹× ºĞ¼®
-- Âü°íÇÒ Á¡ ¹× °³ÀÎÀû ÀÇ°ß
-- ÇâÈÄ ¿¬±¸ ¹æÇâ
+ğŸ’¡ íŒ:
+- ì—°êµ¬ ë°°ê²½ ë° ë™ê¸°
+- í•µì‹¬ ì•„ì´ë””ì–´ ë° ë°©ë²•ë¡ 
+- ì‹¤í—˜ ê²°ê³¼ ë° ë¶„ì„
+- ì°¸ê³ í•  ì  ë° ê°œì¸ì  ì˜ê²¬
+- í–¥í›„ ì—°êµ¬ ë°©í–¥
 
-? ÀÚµ¿ ÀúÀåµÊ (IndexedDB)"
+âš¡ ìë™ ì €ì¥ë¨ (IndexedDB)"
               value={detailedNote}
               onChange={handleDetailedNoteChange}
               disabled={isLoading}
             />
             <div className="text-xs opacity-50">
-              ? IndexedDB¿¡ ÀÚµ¿ ÀúÀå (´ë¿ë·® Áö¿ø)
+              ğŸ’¾ IndexedDBì— ìë™ ì €ì¥ (ëŒ€ìš©ëŸ‰ ì§€ì›)
             </div>
           </div>
         </div>
 
-        {/* ÇªÅÍ */}
+        {/* í‘¸í„° */}
         <div className="px-4 py-2 border-t border-white/10 bg-black/20">
           <div className="flex items-center justify-between text-xs opacity-50">
             <div>
