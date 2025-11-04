@@ -33,9 +33,35 @@ import { Minimap } from './components/Minimap';
  */
 
 /********************** [components] 컨텍스트 메뉴 **********************/
-function ContextMenu({ visible, x, y, nodeId, nodeStyles, setStyle, lockedIds, toggleLock, onClose }) {
-  if (!visible || !nodeId) return null;
+function ContextMenu({ visible, x, y, nodeId, nodeStyles, setStyle, lockedIds, toggleLock, onClose, customColorHistory, addCustomColor }) {
   const current = nodeStyles[nodeId] || { shape: 'circle', size: 'm', color: null, labelPinned: false, glow: false };
+  
+  // 커스텀 색상 입력 상태 (항상 호출)
+  const [showColorInput, setShowColorInput] = useState(false);
+  const [hue, setHue] = useState(180);
+  const [saturation, setSaturation] = useState(70);
+  const [lightness, setLightness] = useState(60);
+  
+  // HSL을 HEX로 변환
+  const hslToHex = (h, s, l) => {
+    s /= 100;
+    l /= 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => {
+      const k = (n + h / 30) % 12;
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  };
+  
+  const customColor = hslToHex(hue, saturation, lightness);
+  
+  if (!visible || !nodeId) return null;
+  
+  // 기본 색상 팔레트
+  const defaultColors = ['#22d3ee', '#34d399', '#a78bfa', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#06b6d4'];
+  
   return (
     <div className="context-menu"
          style={{ left: x, top: y }} onClick={(e)=>e.stopPropagation()}>
@@ -55,11 +81,136 @@ function ContextMenu({ visible, x, y, nodeId, nodeStyles, setStyle, lockedIds, t
           <button key={sz} className={`flex-1 px-2 py-1 rounded-lg ${ (current.size||'m')===sz?'bg-white/10':''} hover:bg-white/10`} onClick={()=>{ setStyle(nodeId,{size:sz}); onClose(); }}>{sz.toUpperCase()}</button>
         ))}
       </div>
-      <div className="px-1 text-xs opacity-70 mt-2">Color</div>
-      <div className="flex items-center gap-2 px-1 mt-1">
-        {[null,'#22d3ee','#34d399','#a78bfa','#f59e0b','#ef4444'].map((c,i)=> (
-          <button key={String(c)+i} aria-label={`color-${c||'auto'}`} className={`w-5 h-5 rounded-full border border-white/30 ${ (current.color||null)===c?'ring-2 ring-white':'' }`} style={{ background: c || 'linear-gradient(45deg,#22d3ee,#34d399,#a78bfa)' }} onClick={()=>{ setStyle(nodeId,{color:c}); onClose(); }} />
+      <div className="px-1 text-xs opacity-70 mt-2 mb-1 flex items-center justify-between">
+        <span>Color</span>
+        <button 
+          className="text-xs opacity-60 hover:opacity-100 px-1 py-0.5 rounded hover:bg-white/10"
+          onClick={()=>{ setStyle(nodeId,{color:null}); onClose(); }}
+          title="Reset to default group color"
+        >
+          Reset
+        </button>
+      </div>
+      <div className="grid grid-cols-8 gap-1 px-1">
+        {defaultColors.map((c)=> (
+          <button 
+            key={c} 
+            aria-label={`color-${c}`} 
+            className={`w-4 h-4 rounded-full border border-white/30 hover:scale-110 transition-transform ${ current.color===c?'ring-2 ring-white':'' }`} 
+            style={{ backgroundColor: c, fontSize: '0.5em' }} 
+            onClick={()=>{ setStyle(nodeId,{color:c}); onClose(); }} 
+          />
         ))}
+      </div>
+      {/* 커스텀 색상 히스토리 (두 번째 줄) */}
+      <div className="grid grid-cols-8 gap-1 px-1 mt-1">
+        {customColorHistory.map((c, idx)=> (
+          <button 
+            key={`${c}-${idx}`}
+            aria-label={`custom-color-${c}`} 
+            className={`w-4 h-4 rounded-full border border-white/30 hover:scale-110 transition-transform ${ current.color===c?'ring-2 ring-white':'' }`} 
+            style={{ backgroundColor: c, fontSize: '0.5em' }} 
+            onClick={()=>{ setStyle(nodeId,{color:c}); onClose(); }} 
+          />
+        ))}
+        {/* 빈 슬롯 표시 */}
+        {Array.from({ length: 8 - customColorHistory.length }).map((_, idx) => (
+          <div 
+            key={`empty-${idx}`}
+            className="w-4 h-4 rounded-full border border-white/10 bg-white/5"
+            style={{ fontSize: '0.5em' }}
+          />
+        ))}
+      </div>
+      <div className="px-1 mt-2">
+        {!showColorInput ? (
+          <button 
+            className="w-full px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/20 text-xs flex items-center justify-center gap-2 transition-colors"
+            onClick={()=>setShowColorInput(true)}
+          >
+            <span>🎨</span>
+            <span>Custom Color</span>
+          </button>
+        ) : (
+          <div className="bg-white/5 border border-white/20 rounded-lg p-2 space-y-2">
+            {/* 색상 미리보기 */}
+            <div className="flex items-center gap-2">
+              <div 
+                className="flex-1 h-10 rounded border border-white/30"
+                style={{ backgroundColor: customColor }}
+              />
+              <div className="text-xs font-mono opacity-70">{customColor}</div>
+            </div>
+            
+            {/* Hue 슬라이더 */}
+            <div>
+              <div className="text-xs opacity-70 mb-1">Hue</div>
+              <input 
+                type="range" 
+                min="0" 
+                max="360" 
+                value={hue}
+                onChange={(e)=>setHue(Number(e.target.value))}
+                className="w-full h-2 rounded appearance-none cursor-pointer"
+                style={{
+                  background: 'linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)'
+                }}
+              />
+            </div>
+            
+            {/* Saturation 슬라이더 */}
+            <div>
+              <div className="text-xs opacity-70 mb-1">Saturation</div>
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={saturation}
+                onChange={(e)=>setSaturation(Number(e.target.value))}
+                className="w-full h-2 rounded appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, hsl(${hue}, 0%, 50%), hsl(${hue}, 100%, 50%))`
+                }}
+              />
+            </div>
+            
+            {/* Lightness 슬라이더 */}
+            <div>
+              <div className="text-xs opacity-70 mb-1">Lightness</div>
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={lightness}
+                onChange={(e)=>setLightness(Number(e.target.value))}
+                className="w-full h-2 rounded appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, hsl(${hue}, ${saturation}%, 0%), hsl(${hue}, ${saturation}%, 50%), hsl(${hue}, ${saturation}%, 100%))`
+                }}
+              />
+            </div>
+            
+            <div className="flex gap-1 pt-1">
+              <button 
+                className="flex-1 px-2 py-1 rounded bg-teal-500/80 hover:bg-teal-500 text-xs text-black font-semibold"
+                onClick={()=>{ 
+                  addCustomColor(customColor); // 히스토리에 추가
+                  setStyle(nodeId,{color:customColor}); 
+                  setShowColorInput(false);
+                  onClose(); 
+                }}
+              >
+                Apply
+              </button>
+              <button 
+                className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-xs"
+                onClick={()=>setShowColorInput(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-2 px-1 mt-3">
         <label className="flex items-center gap-2 text-sm">
@@ -158,6 +309,7 @@ function GraphView({
   lockedIds,
   setContextMenu,
   onNodeClickWithPosition, // 새로운 prop: 클릭 위치 포함
+  closePreviewMenu, // 미리보기 메뉴 닫기
 }) {
   // 커서 포인터 처리(안전하게 컨테이너 div에 적용)
   const onNodeHover = (n) => { 
@@ -180,6 +332,17 @@ function GraphView({
     const rect = containerRef.current?.getBoundingClientRect();
     const x=(evt?.clientX??0)-(rect?.left??0); const y=(evt?.clientY??0)-(rect?.top??0);
     setContextMenu({visible:true, x, y, nodeId:node.id});
+    closePreviewMenu(); // 미리보기 메뉴 닫기
+  };
+  // 배경 클릭: 모든 메뉴 닫기
+  const onBackgroundClick = () => {
+    closePreviewMenu();
+    setContextMenu((m)=>({...m, visible:false}));
+  };
+  // 줌/드래그 시: 모든 메뉴 닫기
+  const onZoom = () => {
+    closePreviewMenu();
+    setContextMenu((m)=>({...m, visible:false}));
   };
 
   // 캔버스 노드 그리기 콜백 구성
@@ -215,13 +378,15 @@ function GraphView({
       linkDirectionalArrowRelPos={0.5}
       linkCurvature={linkCurvature}
       cooldownTicks={90}
+      onNodeHover={onNodeHover}
+      onNodeClick={onNodeClick}
+      onNodeRightClick={onNodeRightClick}
+      onBackgroundClick={onBackgroundClick}
+      onZoom={onZoom}
       d3VelocityDecay={0.3}
       nodeLabel={(n)=>n.title||n.id}
       nodeCanvasObject={nodeCanvasObject}
       nodePointerAreaPaint={nodePointerAreaPaint}
-      onNodeClick={onNodeClick}
-      onNodeHover={onNodeHover}
-      onNodeRightClick={onNodeRightClick}
       onEngineStop={fit}
     />
   );
@@ -286,6 +451,20 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [previewPosition, setPreviewPosition] = useState({ x: 0, y: 0 }); // 토글 메뉴 위치
   const [notePanelOpen, setNotePanelOpen] = useState(false); // 노트 패널 열림 상태
+  
+  /** 커스텀 색상 히스토리 (최대 8개, Queue 방식) */
+  const [customColorHistory, setCustomColorHistory] = useState([]);
+  
+  // 커스텀 색상 추가 함수 (왼쪽에 추가, 오른쪽 제거)
+  const addCustomColor = (color) => {
+    setCustomColorHistory(prev => {
+      // 이미 존재하면 제거하고 맨 앞에 추가
+      const filtered = prev.filter(c => c !== color);
+      const newHistory = [color, ...filtered];
+      // 최대 8개까지만 유지
+      return newHistory.slice(0, 8);
+    });
+  };
   
   /** 줌 레벨 상태 */
   const [zoomLevel, setZoomLevel] = useState(1.0);
@@ -354,6 +533,12 @@ export default function App() {
     setSelectedId(nodeId);
     setPreviewPosition({ x, y });
     setNotePanelOpen(false); // 패널이 열려있으면 닫기
+  };
+
+  /** 미리보기 메뉴 닫기 */
+  const closePreviewMenu = () => {
+    setSelectedId(null);
+    setPreviewPosition({ x: 0, y: 0 });
   };
 
   /** 토글 메뉴에서 "Open Note" 클릭 시 패널 열기 */
@@ -427,6 +612,7 @@ export default function App() {
             lockedIds={lockedIds}
             setContextMenu={setContextMenu}
             onNodeClickWithPosition={handleNodeClickWithPosition}
+            closePreviewMenu={closePreviewMenu}
           />
         </div>
 
@@ -456,6 +642,8 @@ export default function App() {
           lockedIds={lockedIds}
           toggleLock={toggleLock}
           onClose={()=>setContextMenu((m)=>({...m, visible:false}))}
+          customColorHistory={customColorHistory}
+          addCustomColor={addCustomColor}
         />
 
         {/* 토글 미리보기 메뉴 - 노드 클릭 시 마우스 근처에 표시 */}
