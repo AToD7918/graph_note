@@ -9,7 +9,6 @@ import { computeRadialAnchors, makeCurvatureAccessor } from './graph/layout';
 import { makeNodeCanvasObject, makeNodePointerAreaPaint, defaultLinkColor } from './graph/renderers';
 import { NotePanel } from './components/NotePanel';
 import { ZoomControls } from './components/ZoomControls';
-import { Minimap } from './components/Minimap';
 
 /**
  * Graph-First Paper Notes (V1.2, 컴포넌트 분리 버전)
@@ -310,6 +309,7 @@ function GraphView({
   setContextMenu,
   onNodeClickWithPosition, // 새로운 prop: 클릭 위치 포함
   closePreviewMenu, // 미리보기 메뉴 닫기
+  onZoomChange, // 줌 레벨 변경 핸들러
 }) {
   // 커서 포인터 처리(안전하게 컨테이너 div에 적용)
   const onNodeHover = (n) => { 
@@ -339,10 +339,16 @@ function GraphView({
     closePreviewMenu();
     setContextMenu((m)=>({...m, visible:false}));
   };
-  // 줌/드래그 시: 모든 메뉴 닫기
+  // 줌/드래그 시: 모든 메뉴 닫기 + 줌 레벨 업데이트
   const onZoom = () => {
     closePreviewMenu();
     setContextMenu((m)=>({...m, visible:false}));
+    
+    // 줌 레벨 업데이트 (스크롤 줌 시)
+    if (fgRef.current && onZoomChange) {
+      const currentZoom = fgRef.current.zoom();
+      onZoomChange(currentZoom);
+    }
   };
 
   // 캔버스 노드 그리기 콜백 구성
@@ -569,19 +575,22 @@ export default function App() {
   const handleNodeClickWithPosition = (nodeId, x, y) => {
     setSelectedId(nodeId);
     setPreviewPosition({ x, y });
-    setNotePanelOpen(false); // 패널이 열려있으면 닫기
+    // 노트 패널은 사용자가 "Open Note"를 클릭할 때만 열림
   };
 
   /** 미리보기 메뉴 닫기 */
   const closePreviewMenu = () => {
-    setSelectedId(null);
+    // 노트 패널이 열려있지 않을 때만 selectedId 초기화
+    if (!notePanelOpen) {
+      setSelectedId(null);
+    }
     setPreviewPosition({ x: 0, y: 0 });
   };
 
   /** 토글 메뉴에서 "Open Note" 클릭 시 패널 열기 */
   const handleOpenNotePanel = () => {
     setNotePanelOpen(true);
-    setPreviewPosition({ x: 0, y: 0 }); // 토글 메뉴 숨기기
+    setPreviewPosition({ x: 0, y: 0 }); // 토글 메뉴 숨기기 (패널이 열리면 조건에 의해 자동으로 사라짐)
   };
 
   /** 줌 레벨 변경 핸들러 */
@@ -650,6 +659,7 @@ export default function App() {
             setContextMenu={setContextMenu}
             onNodeClickWithPosition={handleNodeClickWithPosition}
             closePreviewMenu={closePreviewMenu}
+            onZoomChange={handleZoomChange}
           />
         </div>
 
@@ -658,14 +668,6 @@ export default function App() {
           fgRef={fgRef} 
           zoom={zoomLevel}
           onZoomChange={handleZoomChange}
-        />
-
-        {/* Minimap */}
-        <Minimap 
-          fgRef={fgRef}
-          graph={derivedData}
-          size={size}
-          notePanelOpen={notePanelOpen}
         />
 
         {/* 컨텍스트 메뉴 */}
@@ -737,7 +739,10 @@ export default function App() {
       {/* 우측 노트 패널 - 새로운 NotePanel 컴포넌트 사용 */}
       <NotePanel
         selectedNote={selectedNote}
-        onClose={() => setNotePanelOpen(false)}
+        onClose={() => {
+          setNotePanelOpen(false);
+          setSelectedId(null); // 패널 닫을 때 선택 해제
+        }}
         onChange={updateNote}
         isOpen={notePanelOpen}
       />
