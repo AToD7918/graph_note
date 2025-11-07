@@ -1,21 +1,21 @@
 import React from 'react';
 
 /**
- * ? »ö»ó ÆÈ·¹Æ® ÄÄÆ÷³ÍÆ®
+ * ğŸ¨ ìƒ‰ìƒ íŒ”ë ˆíŠ¸ ì»´í¬ë„ŒíŠ¸
  * 
- * ? ¿ªÇÒ:
- * - ±âº» »ö»ó ÆÈ·¹Æ® (8°³)
- * - Ä¿½ºÅÒ »ö»ó È÷½ºÅä¸® (ÃÖ´ë 8°³)
- * - »ö»ó ¼±ÅÃ ¹× Àû¿ë
+ * ğŸ¯ ì—­í• :
+ * - ê¸°ë³¸ ìƒ‰ìƒ íŒ”ë ˆíŠ¸ (8ê°œ)
+ * - ì»¤ìŠ¤í…€ ìƒ‰ìƒ íˆìŠ¤í† ë¦¬ (ìµœëŒ€ 8ê°œ)
+ * - ìƒ‰ìƒ ì„ íƒ ë° ì ìš©
  * 
- * ? Props:
- * @param {string|null} currentColor - ÇöÀç ¼±ÅÃµÈ »ö»ó
- * @param {Array<string>} customColorHistory - Ä¿½ºÅÒ »ö»ó È÷½ºÅä¸® ¹è¿­
- * @param {Function} onColorSelect - »ö»ó ¼±ÅÃ ÇÚµé·¯ (color: string) => void
- * @param {Function} onResetColor - »ö»ó ¸®¼Â ÇÚµé·¯
+ * ğŸ“¦ Props:
+ * @param {string|null} currentColor - í˜„ì¬ ì„ íƒëœ ìƒ‰ìƒ
+ * @param {Array<string>} customColorHistory - ì»¤ìŠ¤í…€ ìƒ‰ìƒ íˆìŠ¤í† ë¦¬ ë°°ì—´
+ * @param {Function} onColorSelect - ìƒ‰ìƒ ì„ íƒ í•¸ë“¤ëŸ¬ (color: string) => void
+ * @param {Function} onResetColor - ìƒ‰ìƒ ë¦¬ì…‹ í•¸ë“¤ëŸ¬
  */
 export function ColorPalette({ currentColor, customColorHistory, onColorSelect, onResetColor }) {
-  // ±âº» »ö»ó ÆÈ·¹Æ®
+  // ê¸°ë³¸ ìƒ‰ìƒ íŒ”ë ˆíŠ¸
   const defaultColors = ['#22d3ee', '#34d399', '#a78bfa', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#06b6d4'];
   
   return (
@@ -31,7 +31,7 @@ export function ColorPalette({ currentColor, customColorHistory, onColorSelect, 
         </button>
       </div>
       
-      {/* ±âº» »ö»ó ÆÈ·¹Æ® (Ã¹ ¹øÂ° ÁÙ) */}
+      {/* ê¸°ë³¸ ìƒ‰ìƒ íŒ”ë ˆíŠ¸ (ì²« ë²ˆì§¸ ì¤„) */}
       <div className="grid grid-cols-8 gap-1 px-1">
         {defaultColors.map((c)=> (
           <button 
@@ -46,7 +46,7 @@ export function ColorPalette({ currentColor, customColorHistory, onColorSelect, 
         ))}
       </div>
       
-      {/* Ä¿½ºÅÒ »ö»ó È÷½ºÅä¸® (µÎ ¹øÂ° ÁÙ) */}
+      {/* ì»¤ìŠ¤í…€ ìƒ‰ìƒ íˆìŠ¤í† ë¦¬ (ë‘ ë²ˆì§¸ ì¤„) */}
       <div className="grid grid-cols-8 gap-1 px-1 mt-1">
         {customColorHistory.map((c, idx)=> (
           <button 
@@ -59,7 +59,7 @@ export function ColorPalette({ currentColor, customColorHistory, onColorSelect, 
             onClick={()=>onColorSelect(c)} 
           />
         ))}
-        {/* ºó ½½·Ô Ç¥½Ã */}
+        {/* ë¹ˆ ìŠ¬ë¡¯ í‘œì‹œ */}
         {Array.from({ length: 8 - customColorHistory.length }).map((_, idx) => (
           <div 
             key={`empty-${idx}`}

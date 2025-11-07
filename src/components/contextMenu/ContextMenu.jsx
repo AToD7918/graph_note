@@ -3,24 +3,24 @@ import { ColorPalette } from './ColorPalette';
 import { ColorPicker } from './ColorPicker';
 
 /**
- * ?? ÄÁÅØ½ºÆ® ¸Ş´º ÄÄÆ÷³ÍÆ®
+ * ğŸ–±ï¸ ì»¨í…ìŠ¤íŠ¸ ë©”ë‰´ ì»´í¬ë„ŒíŠ¸
  * 
- * ? ¿ªÇÒ:
- * - ³ëµå ¿ìÅ¬¸¯ ½Ã Ç¥½ÃµÇ´Â ½ºÅ¸ÀÏ ÆíÁı ¸Ş´º
- * - Shape, Size, Color, Lock »óÅÂ µî ÆíÁı
+ * ğŸ¯ ì—­í• :
+ * - ë…¸ë“œ ìš°í´ë¦­ ì‹œ í‘œì‹œë˜ëŠ” ìŠ¤íƒ€ì¼ í¸ì§‘ ë©”ë‰´
+ * - Shape, Size, Color, Lock ìƒíƒœ ë“± í¸ì§‘
  * 
- * ? Props:
- * @param {boolean} visible - ¸Ş´º Ç¥½Ã ¿©ºÎ
- * @param {number} x - ¸Ş´º X ÁÂÇ¥
- * @param {number} y - ¸Ş´º Y ÁÂÇ¥
- * @param {string} nodeId - ¼±ÅÃµÈ ³ëµå ID
- * @param {Object} nodeStyles - ³ëµå ½ºÅ¸ÀÏ ¸Ê { [nodeId]: { shape, size, color, ... } }
- * @param {Function} setStyle - ½ºÅ¸ÀÏ ¼³Á¤ ÇÔ¼ö (nodeId, styleObj) => void
- * @param {Set} lockedIds - °íÁ¤µÈ ³ëµå ID Set
- * @param {Function} toggleLock - ³ëµå °íÁ¤ Åä±Û ÇÔ¼ö
- * @param {Function} onClose - ¸Ş´º ´İ±â ÇÚµé·¯
- * @param {Array<string>} customColorHistory - Ä¿½ºÅÒ »ö»ó È÷½ºÅä¸®
- * @param {Function} addCustomColor - Ä¿½ºÅÒ »ö»ó Ãß°¡ ÇÔ¼ö
+ * ğŸ“¦ Props:
+ * @param {boolean} visible - ë©”ë‰´ í‘œì‹œ ì—¬ë¶€
+ * @param {number} x - ë©”ë‰´ X ì¢Œí‘œ
+ * @param {number} y - ë©”ë‰´ Y ì¢Œí‘œ
+ * @param {string} nodeId - ì„ íƒëœ ë…¸ë“œ ID
+ * @param {Object} nodeStyles - ë…¸ë“œ ìŠ¤íƒ€ì¼ ë§µ { [nodeId]: { shape, size, color, ... } }
+ * @param {Function} setStyle - ìŠ¤íƒ€ì¼ ì„¤ì • í•¨ìˆ˜ (nodeId, styleObj) => void
+ * @param {Set} lockedIds - ê³ ì •ëœ ë…¸ë“œ ID Set
+ * @param {Function} toggleLock - ë…¸ë“œ ê³ ì • í† ê¸€ í•¨ìˆ˜
+ * @param {Function} onClose - ë©”ë‰´ ë‹«ê¸° í•¸ë“¤ëŸ¬
+ * @param {Array<string>} customColorHistory - ì»¤ìŠ¤í…€ ìƒ‰ìƒ íˆìŠ¤í† ë¦¬
+ * @param {Function} addCustomColor - ì»¤ìŠ¤í…€ ìƒ‰ìƒ ì¶”ê°€ í•¨ìˆ˜
  */
 export function ContextMenu({ 
   visible, 
@@ -40,19 +40,19 @@ export function ContextMenu({
   
   if (!visible || !nodeId) return null;
   
-  // »ö»ó ¼±ÅÃ ÇÚµé·¯
+  // ìƒ‰ìƒ ì„ íƒ í•¸ë“¤ëŸ¬
   const handleColorSelect = (color) => {
     setStyle(nodeId, { color });
     onClose();
   };
   
-  // »ö»ó ¸®¼Â ÇÚµé·¯
+  // ìƒ‰ìƒ ë¦¬ì…‹ í•¸ë“¤ëŸ¬
   const handleResetColor = () => {
     setStyle(nodeId, { color: null });
     onClose();
   };
   
-  // Ä¿½ºÅÒ »ö»ó Àû¿ë ÇÚµé·¯
+  // ì»¤ìŠ¤í…€ ìƒ‰ìƒ ì ìš© í•¸ë“¤ëŸ¬
   const handleApplyCustomColor = (color) => {
     addCustomColor(color);
     setStyle(nodeId, { color });
@@ -66,12 +66,12 @@ export function ContextMenu({
       style={{ left: x, top: y }} 
       onClick={(e)=>e.stopPropagation()}
     >
-      {/* ³ëµå ID Ç¥½Ã */}
+      {/* ë…¸ë“œ ID í‘œì‹œ */}
       <div className="text-xs uppercase opacity-70 px-1 pb-2">
         Node: {nodeId}
       </div>
       
-      {/* Lock/Unlock ¹öÆ° */}
+      {/* Lock/Unlock ë²„íŠ¼ */}
       <button 
         className="w-full text-left px-2 py-1 rounded-lg hover:bg-white/10" 
         onClick={()=>{ toggleLock(nodeId); onClose(); }}
@@ -81,7 +81,7 @@ export function ContextMenu({
       
       <div className="h-px my-2 bg-white/10" />
       
-      {/* Shape ¼±ÅÃ */}
+      {/* Shape ì„ íƒ */}
       <div className="px-1 text-xs opacity-70">Shape</div>
       <div className="flex gap-2 px-1 mt-1">
         <button 
@@ -102,7 +102,7 @@ export function ContextMenu({
         </button>
       </div>
       
-      {/* Size ¼±ÅÃ */}
+      {/* Size ì„ íƒ */}
       <div className="px-1 text-xs opacity-70 mt-2">Size</div>
       <div className="flex gap-2 px-1 mt-1">
         {['s', 'm', 'l'].map(sz => (
@@ -118,7 +118,7 @@ export function ContextMenu({
         ))}
       </div>
       
-      {/* »ö»ó ÆÈ·¹Æ® */}
+      {/* ìƒ‰ìƒ íŒ”ë ˆíŠ¸ */}
       <ColorPalette
         currentColor={current.color}
         customColorHistory={customColorHistory}
@@ -126,14 +126,14 @@ export function ContextMenu({
         onResetColor={handleResetColor}
       />
       
-      {/* Ä¿½ºÅÒ »ö»ó ¼±ÅÃ±â */}
+      {/* ì»¤ìŠ¤í…€ ìƒ‰ìƒ ì„ íƒê¸° */}
       <div className="px-1 mt-2">
         {!showColorInput ? (
           <button 
             className="w-full px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/20 text-xs flex items-center justify-center gap-2 transition-colors"
             onClick={()=>setShowColorInput(true)}
           >
-            <span>?</span>
+            <span>ğŸ¨</span>
             <span>Custom Color</span>
           </button>
         ) : (
@@ -144,7 +144,7 @@ export function ContextMenu({
         )}
       </div>
       
-      {/* Ãß°¡ ¿É¼Ç */}
+      {/* ì¶”ê°€ ì˜µì…˜ */}
       <div className="flex items-center gap-2 px-1 mt-3">
         <label className="flex items-center gap-2 text-sm">
           <input 

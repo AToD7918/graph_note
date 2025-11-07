@@ -1,23 +1,23 @@
 import React, { useState } from 'react';
 
 /**
- * ? Ä¿½ºÅÒ »ö»ó ¼±ÅÃ±â ÄÄÆ÷³ÍÆ®
+ * ğŸ¨ ì»¤ìŠ¤í…€ ìƒ‰ìƒ ì„ íƒê¸° ì»´í¬ë„ŒíŠ¸
  * 
- * ? ¿ªÇÒ:
- * - HSL »ö»ó ¸ğµ¨ ±â¹İ Ä¿½ºÅÒ »ö»ó ¼±ÅÃ
- * - Hue, Saturation, Lightness ½½¶óÀÌ´õ Á¦°ø
- * - ½Ç½Ã°£ »ö»ó ¹Ì¸®º¸±â
+ * ğŸ¯ ì—­í• :
+ * - HSL ìƒ‰ìƒ ëª¨ë¸ ê¸°ë°˜ ì»¤ìŠ¤í…€ ìƒ‰ìƒ ì„ íƒ
+ * - Hue, Saturation, Lightness ìŠ¬ë¼ì´ë” ì œê³µ
+ * - ì‹¤ì‹œê°„ ìƒ‰ìƒ ë¯¸ë¦¬ë³´ê¸°
  * 
- * ? Props:
- * @param {Function} onApply - »ö»ó Àû¿ë ÇÚµé·¯ (color: string) => void
- * @param {Function} onCancel - Ãë¼Ò ÇÚµé·¯
+ * ğŸ“¦ Props:
+ * @param {Function} onApply - ìƒ‰ìƒ ì ìš© í•¸ë“¤ëŸ¬ (color: string) => void
+ * @param {Function} onCancel - ì·¨ì†Œ í•¸ë“¤ëŸ¬
  */
 export function ColorPicker({ onApply, onCancel }) {
   const [hue, setHue] = useState(180);
   const [saturation, setSaturation] = useState(70);
   const [lightness, setLightness] = useState(60);
   
-  // HSLÀ» HEX·Î º¯È¯
+  // HSLì„ HEXë¡œ ë³€í™˜
   const hslToHex = (h, s, l) => {
     s /= 100;
     l /= 100;
@@ -34,7 +34,7 @@ export function ColorPicker({ onApply, onCancel }) {
   
   return (
     <div className="bg-white/5 border border-white/20 rounded-lg p-2 space-y-2">
-      {/* »ö»ó ¹Ì¸®º¸±â */}
+      {/* ìƒ‰ìƒ ë¯¸ë¦¬ë³´ê¸° */}
       <div className="flex items-center gap-2">
         <div 
           className="flex-1 h-10 rounded border border-white/30"
@@ -43,7 +43,7 @@ export function ColorPicker({ onApply, onCancel }) {
         <div className="text-xs font-mono opacity-70">{customColor}</div>
       </div>
       
-      {/* Hue ½½¶óÀÌ´õ */}
+      {/* Hue ìŠ¬ë¼ì´ë” */}
       <div>
         <div className="text-xs opacity-70 mb-1">Hue</div>
         <input 
@@ -59,7 +59,7 @@ export function ColorPicker({ onApply, onCancel }) {
         />
       </div>
       
-      {/* Saturation ½½¶óÀÌ´õ */}
+      {/* Saturation ìŠ¬ë¼ì´ë” */}
       <div>
         <div className="text-xs opacity-70 mb-1">Saturation</div>
         <input 
@@ -75,7 +75,7 @@ export function ColorPicker({ onApply, onCancel }) {
         />
       </div>
       
-      {/* Lightness ½½¶óÀÌ´õ */}
+      {/* Lightness ìŠ¬ë¼ì´ë” */}
       <div>
         <div className="text-xs opacity-70 mb-1">Lightness</div>
         <input 
@@ -91,7 +91,7 @@ export function ColorPicker({ onApply, onCancel }) {
         />
       </div>
       
-      {/* ¹öÆ° */}
+      {/* ë²„íŠ¼ */}
       <div className="flex gap-1 pt-1">
         <button 
           className="flex-1 px-2 py-1 rounded bg-teal-500/80 hover:bg-teal-500 text-xs text-black font-semibold"
