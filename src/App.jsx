@@ -10,6 +10,7 @@ import { makeNodeCanvasObject, makeNodePointerAreaPaint, defaultLinkColor } from
 import { NotePanel } from './components/NotePanel';
 import { ZoomControls } from './components/ZoomControls';
 import { SettingsModal } from './components/SettingsModal';
+import { AddNodeModal } from './components/AddNodeModal';
 
 /**
  * Graph-First Paper Notes (V1.2, 컴포넌트 분리 버전)
@@ -219,49 +220,6 @@ function ContextMenu({ visible, x, y, nodeId, nodeStyles, setStyle, lockedIds, t
         <label className="flex items-center gap-2 text-sm ml-2">
           <input type="checkbox" checked={!!current.glow} onChange={(e)=>setStyle(nodeId,{glow:e.target.checked})} /> Emphasis glow
         </label>
-      </div>
-    </div>
-  );
-}
-
-/********************** [components] 추가 모달 **********************/
-function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
-  if (!open) return null;
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content modal-content-add-node" onClick={(e)=>e.stopPropagation()}>
-        <div className="text-lg font-semibold mb-3">Add Node</div>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">Title</span>
-            <input className="input-field" value={form.title} onChange={(e)=>setForm({...form, title:e.target.value})} placeholder="e.g., New Paper" />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">Group</span>
-            <select className="input-field" value={form.group} onChange={(e)=>setForm({...form, group:e.target.value})}>
-              <option value={1}>Core</option>
-              <option value={2}>Forward</option>
-              <option value={3}>Backward</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">Link Type</span>
-            <select className="input-field" value={form.linkType} onChange={(e)=>setForm({...form, linkType:e.target.value})}>
-              <option value="forward">Core/기준 → 새 노드</option>
-              <option value="backward">새 노드 → Core/기준</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">Connect To</span>
-            <select className="input-field" value={form.connectTo} onChange={(e)=>setForm({...form, connectTo:e.target.value})}>
-              {graph.nodes.map(n=> (<option key={n.id} value={n.id}>{n.id}</option>))}
-            </select>
-          </label>
-        </div>
-        <div className="mt-4 flex items-center justify-end gap-2">
-          <button className="px-3 py-1 rounded bg-white/10 hover:bg-white/20" onClick={onClose}>Cancel</button>
-          <button className="px-3 py-1 rounded bg-teal-500 text-black font-semibold hover:bg-teal-400" onClick={addNode}>Add</button>
-        </div>
       </div>
     </div>
   );
