@@ -14,8 +14,10 @@ import { loadNoteDetail, saveNoteDetail } from '../adapters/noteStorage';
  * @param {Function} onClose - 패널 닫기 핸들러
  * @param {Function} onChange - 요약 변경 핸들러 (localStorage)
  * @param {boolean} isOpen - 패널 열림 상태
+ * @param {number} panelWidth - 패널 너비 (px)
+ * @param {Function} setPanelWidth - 패널 너비 설정 함수
  */
-export function NotePanel({ selectedNote, onClose, onChange, isOpen }) {
+export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth, setPanelWidth }) {
   // 요약 (summary) - localStorage
   const [localSummary, setLocalSummary] = useState('');
   
@@ -32,6 +34,41 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen }) {
   // 워드 카운트
   const [summaryWords, setSummaryWords] = useState(0);
   const [detailedWords, setDetailedWords] = useState(0);
+
+  // 리사이징 상태
+  const [isResizing, setIsResizing] = useState(false);
+
+  // 리사이저 마우스 다운 핸들러
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  // 리사이징 이펙트
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e) => {
+      const newWidth = window.innerWidth - e.clientX;
+      const minWidth = 360;
+      const maxWidth = window.innerWidth * 0.8;
+      
+      const constrainedWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+      setPanelWidth(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, setPanelWidth]);
 
   // IndexedDB에서 상세 노트 로드
   const loadDetailedNote = async (nodeId) => {
@@ -112,9 +149,18 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen }) {
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}
       style={{
-        width: 'max(360px, 40vw)'
+        width: `${panelWidth}px`
       }}
     >
+      {/* 리사이저 핸들 */}
+      <div
+        className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-teal-500/50 transition-colors z-50"
+        onMouseDown={handleMouseDown}
+        style={{
+          background: isResizing ? 'rgba(20, 184, 166, 0.5)' : 'transparent'
+        }}
+      />
+      
       <div className="h-full flex flex-col">
         {/* 헤더 */}
         <div className="p-4 border-b border-white/10 flex items-center justify-between">

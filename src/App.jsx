@@ -494,6 +494,7 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [previewPosition, setPreviewPosition] = useState({ x: 0, y: 0 }); // 토글 메뉴 위치
   const [notePanelOpen, setNotePanelOpen] = useState(false); // 노트 패널 열림 상태
+  const [panelWidth, setPanelWidth] = useState(Math.max(360, window.innerWidth * 0.4)); // 노트 패널 너비
   
   /** 커스텀 색상 히스토리 (최대 8개, Queue 방식) */
   const [customColorHistory, setCustomColorHistory] = useState([]);
@@ -645,7 +646,7 @@ export default function App() {
       <div 
         className="absolute inset-0 transition-all duration-300"
         style={{
-          right: notePanelOpen ? 'max(360px, 40vw)' : '0'
+          right: notePanelOpen ? `${panelWidth}px` : '0'
         }}
       >
         <div ref={containerRef} className="graph-container">
@@ -745,6 +746,8 @@ export default function App() {
         }}
         onChange={updateNote}
         isOpen={notePanelOpen}
+        panelWidth={panelWidth}
+        setPanelWidth={setPanelWidth}
       />
 
       {/* 설정 모달 */}
