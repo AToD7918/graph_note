@@ -36,10 +36,6 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
   // 저장 상태
   const [lastSaved, setLastSaved] = useState(null);
   const [saveStatus, setSaveStatus] = useState(''); // 'saving' | 'saved' | ''
-  
-  // 워드 카운트
-  const [summaryWords, setSummaryWords] = useState(0);
-  const [detailedWords, setDetailedWords] = useState(0);
 
   // 리사이징 상태
   const [isResizing, setIsResizing] = useState(false);
@@ -82,7 +78,6 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
     try {
       const content = await loadNoteDetail(nodeId);
       setDetailedNote(content || '');
-      updateWordCount(content || '', 'detailed');
       console.log(`📖 상세 노트 로드: ${nodeId}`);
     } catch (error) {
       console.error('상세 노트 로드 실패:', error);
@@ -92,22 +87,11 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
     }
   };
 
-  // 워드 카운트 계산
-  const updateWordCount = (text, type) => {
-    const words = text.trim().split(/\s+/).filter(w => w.length > 0);
-    if (type === 'summary') {
-      setSummaryWords(words.length);
-    } else {
-      setDetailedWords(words.length);
-    }
-  };
-
   // 선택된 노트 변경 시 데이터 로드
   useEffect(() => {
     if (selectedNote && isOpen) {
       // 요약 로드 (localStorage에서 이미 로드됨)
       setLocalSummary(selectedNote.summary || '');
-      updateWordCount(selectedNote.summary || '', 'summary');
       
       // 태그 로드 (localStorage)
       setLocalTags(selectedNote.tags || {});
@@ -115,14 +99,12 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
       // 상세 노트 로드 (IndexedDB에서 Lazy Loading)
       loadDetailedNote(selectedNote.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNote, isOpen]);
 
   // 요약 변경 핸들러 (localStorage)
   const handleSummaryChange = (e) => {
     const newValue = e.target.value;
     setLocalSummary(newValue);
-    updateWordCount(newValue, 'summary');
     onChange({ summary: newValue });
     setSaveStatus('saved');
     setLastSaved(new Date());
@@ -148,7 +130,6 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
   const handleDetailedNoteChange = async (e) => {
     const newValue = e.target.value;
     setDetailedNote(newValue);
-    updateWordCount(newValue, 'detailed');
     
     // IndexedDB에 저장
     setSaveStatus('saving');
@@ -191,11 +172,6 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <div className="flex-1 min-w-0">
             <div className="font-semibold truncate pr-3">{selectedNote.title}</div>
-            <div className="text-xs opacity-50 mt-1">
-              {selectedNote.group === 1 ? '🎯 Core' : 
-               selectedNote.group === 2 ? '➡️ Forward' : 
-               '⬅️ Backward'}
-            </div>
           </div>
           <button 
             className="text-xs px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 transition-colors flex-shrink-0"
@@ -205,43 +181,15 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
           </button>
         </div>
 
-        {/* 메타 정보 */}
-        <div className="px-4 py-2 border-b border-white/10 bg-black/20">
-          <div className="flex items-center justify-between text-xs opacity-70">
-            <div>
-              ID: <span className="font-mono">{selectedNote.id}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span>
-                Summary: {summaryWords}w / Detailed: {detailedWords}w
-              </span>
-              {lastSaved && (
-                <span className={`${
-                  saveStatus === 'saving' ? 'text-yellow-400' :
-                  saveStatus === 'saved' ? 'text-green-400' :
-                  saveStatus === 'error' ? 'text-red-400' : ''
-                }`}>
-                  {saveStatus === 'saving' && '💾 Saving...'}
-                  {saveStatus === 'saved' && `✓ ${lastSaved.toLocaleTimeString('ko-KR', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}`}
-                  {saveStatus === 'error' && '❌ Error'}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* 노트 편집 영역 */}
-        <div className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto">
+        <div className="p-4 flex-1 flex flex-col gap-3 overflow-y-auto">
           {/* 요약 입력란 (localStorage) */}
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold opacity-90">
+            <label className="text-xs font-semibold opacity-90">
               📋 Summary (토글 메뉴에 표시)
             </label>
             <textarea 
-              className="w-full h-16 bg-black/40 border border-white/10 rounded p-3 text-sm resize-none focus:outline-none focus:border-teal-500/50 transition-colors"
+              className="w-full h-12 bg-black/40 border border-white/10 rounded p-2 text-xs resize-none focus:outline-none focus:border-teal-500/50 transition-colors"
               placeholder="노드 클릭 시 보여질 짧은 요약을 작성하세요..."
               value={localSummary}
               onChange={handleSummaryChange}
@@ -299,6 +247,22 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
               <span className="text-teal-400">Summary</span>: localStorage
               <span className="mx-2">|</span>
               <span className="text-blue-400">Detailed</span>: IndexedDB
+            </div>
+            <div>
+              {lastSaved && (
+                <span className={`${
+                  saveStatus === 'saving' ? 'text-yellow-400' :
+                  saveStatus === 'saved' ? 'text-green-400' :
+                  saveStatus === 'error' ? 'text-red-400' : ''
+                }`}>
+                  {saveStatus === 'saving' && '💾 Saving...'}
+                  {saveStatus === 'saved' && `✓ ${lastSaved.toLocaleTimeString('ko-KR', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}`}
+                  {saveStatus === 'error' && '❌ Error'}
+                </span>
+              )}
             </div>
           </div>
         </div>

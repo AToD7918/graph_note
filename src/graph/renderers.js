@@ -17,15 +17,19 @@
  * 
  * @param {Object} nodeStyles - 각 노드의 스타일 설정 { nodeId: { size, shape, color, ... } }
  * @param {Set} lockedIds - 고정된 노드 ID 목록
+ * @param {string|null} selectedId - 현재 선택된 노드 ID (노트 패널에서 보고 있는 노드)
  * @returns {Function} (node, ctx, globalScale) => void
  * 
  * ? 반환하는 함수는 react-force-graph-2d가 각 프레임마다 호출
  */
-export function makeNodeCanvasObject(nodeStyles, lockedIds) {
+export function makeNodeCanvasObject(nodeStyles, lockedIds, selectedId = null) {
   // 클로저: nodeStyles와 lockedIds를 기억하는 렌더링 함수 반환
   return (node, ctx, globalScale) => {
     // ? 스타일 가져오기 (없으면 빈 객체)
     const style = nodeStyles[node.id] || {};
+    
+    // 현재 노드가 선택된 노드인지 확인
+    const isSelected = selectedId === node.id;
     
     // ? 크기 계산
     const sizeKey = style.size || 'm';  // 's', 'm', 'l'
@@ -99,6 +103,44 @@ export function makeNodeCanvasObject(nodeStyles, lockedIds) {
       ctx.stroke();
     }
     ctx.restore();
+    
+    // ? 선택된 노드는 도넛 링으로 표시
+    if (isSelected) {
+      ctx.save();
+      ctx.strokeStyle = '#fbbf24'; // 황금색
+      ctx.lineWidth = 2.5; // 링 두께
+      ctx.globalAlpha = 0.9;
+      
+      if (shape === 'circle') {
+        // 원형 도넛 링
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r * 1.6, 0, 2 * Math.PI);
+        ctx.stroke();
+        
+        // 이중 링 효과 (선택사항)
+        ctx.globalAlpha = 0.5;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r * 1.9, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else {
+        // 사각 도넛 링
+        const s = r * 2.0;
+        const ringSize = s * 1.6;
+        ctx.beginPath();
+        ctx.rect(node.x - ringSize / 2, node.y - ringSize / 2, ringSize, ringSize);
+        ctx.stroke();
+        
+        // 이중 링 효과
+        ctx.globalAlpha = 0.5;
+        ctx.lineWidth = 1.5;
+        const ringSize2 = s * 1.9;
+        ctx.beginPath();
+        ctx.rect(node.x - ringSize2 / 2, node.y - ringSize2 / 2, ringSize2, ringSize2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     
     // ?? 라벨 그리기 (Pin label 옵션이 켜진 경우)
     if (style.labelPinned) {

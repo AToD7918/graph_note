@@ -132,23 +132,23 @@ export function CategoryRow({
     <div className="flex items-stretch border border-gray-600 rounded-lg bg-gray-800/50 group">
       {/* 왼쪽: 카테고리 */}
       <div className="w-36 flex-shrink-0 border-r border-gray-600 bg-gray-800/80 rounded-l-lg flex items-center">
-        <div className="px-3 py-2.5 flex items-center justify-center gap-2 min-h-[42px] w-full">
+        <div className="px-2 py-1.5 flex items-center justify-center gap-2 min-h-[32px] w-full">
           {isNew ? (
             <input
               type="text"
               placeholder="Category..."
-              className="w-full bg-transparent text-gray-200 text-sm text-center placeholder-gray-500 focus:outline-none"
+              className="w-full bg-transparent text-gray-200 text-xs text-center placeholder-gray-500 focus:outline-none"
               autoFocus
               onChange={(e) => onCategoryNameChange(e.target.value)}
             />
           ) : (
             <>
-              <span className="text-sm font-medium text-gray-200 truncate" title={category}>
+              <span className="text-xs font-medium text-gray-200 truncate" title={category}>
                 {category}
               </span>
               <button
                 onClick={() => onRemoveCategory(category)}
-                className="ml-auto text-gray-500 hover:text-red-400 transition-colors text-base opacity-0 group-hover:opacity-100"
+                className="ml-auto text-gray-500 hover:text-red-400 transition-colors text-sm opacity-0 group-hover:opacity-100"
                 title="Remove category"
               >
                 ×
@@ -159,7 +159,7 @@ export function CategoryRow({
       </div>
 
       {/* 오른쪽: 태그들 */}
-      <div className="flex-1 px-3 py-2 relative rounded-r-lg">
+      <div className="flex-1 px-2 py-1.5 relative rounded-r-lg">
         <div className="flex flex-wrap items-center gap-2">
           {/* 기존 태그 칩들 */}
           {tags.map(tag => (
@@ -181,7 +181,7 @@ export function CategoryRow({
                 onKeyDown={handleKeyDown}
                 onBlur={handleBlur}
                 placeholder="Add tag..."
-                className="px-2 py-1 bg-black/40 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 w-full"
+                className="px-2 py-0.5 bg-black/40 border border-gray-600 rounded text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 w-full"
               />
               
               {/* 자동완성 드롭다운 */}

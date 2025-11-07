@@ -44,6 +44,7 @@ function GraphView({
   derivedData,
   nodeStyles,
   lockedIds,
+  selectedId, // 선택된 노드 ID 추가
   setContextMenu,
   onNodeClickWithPosition, // 새로운 prop: 클릭 위치 포함
   closePreviewMenu, // 미리보기 메뉴 닫기
@@ -90,7 +91,7 @@ function GraphView({
   };
 
   // 캔버스 노드 그리기 콜백 구성
-  const nodeCanvasObject = useMemo(() => makeNodeCanvasObject(nodeStyles, lockedIds), [nodeStyles, lockedIds]);
+  const nodeCanvasObject = useMemo(() => makeNodeCanvasObject(nodeStyles, lockedIds, selectedId), [nodeStyles, lockedIds, selectedId]);
   const nodePointerAreaPaint = useMemo(() => makeNodePointerAreaPaint(nodeStyles), [nodeStyles]);
   // 링크 곡률
   const linkCurvature = useMemo(() => makeCurvatureAccessor(derivedData), [derivedData]);
@@ -447,6 +448,7 @@ export default function App() {
             derivedData={derivedData}
             nodeStyles={nodeStyles}
             lockedIds={lockedIds}
+            selectedId={selectedId}
             setContextMenu={setContextMenu}
             onNodeClickWithPosition={handleNodeClickWithPosition}
             closePreviewMenu={closePreviewMenu}

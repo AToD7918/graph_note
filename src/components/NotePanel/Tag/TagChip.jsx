@@ -27,7 +27,7 @@ export function TagChip({ label, onRemove, color = 'blue' }) {
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-sm transition-all ${colorClasses[color] || colorClasses.blue}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs transition-all ${colorClasses[color] || colorClasses.blue}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       title={tooltipText}

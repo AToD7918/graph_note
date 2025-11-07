@@ -113,12 +113,12 @@ export function TagInput({ value = {}, onChange, tagsIndex = {} }) {
     <div className="flex flex-col gap-3">
       {/* 라벨 */}
       <div className="flex items-center justify-between">
-        <label className="text-sm font-semibold opacity-90">
+        <label className="text-xs font-semibold opacity-90">
           🏷️ Tags
         </label>
         <button
           onClick={() => setIsAddingCategory(true)}
-          className="px-2.5 py-1 text-xs text-gray-400 hover:text-blue-400 border border-dashed border-gray-600 hover:border-blue-500 rounded transition-colors flex items-center gap-1"
+          className="px-2 py-0.5 text-xs text-gray-400 hover:text-blue-400 border border-dashed border-gray-600 hover:border-blue-500 rounded transition-colors flex items-center gap-1"
           title="Add category"
         >
           <span>+</span>
