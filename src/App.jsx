@@ -7,12 +7,13 @@ import { initializeSeedNotes } from './adapters/noteStorage';
 import { seedCore5 } from './data/seedData';
 import { computeRadialAnchors, makeCurvatureAccessor } from './graph/layout';
 import { makeNodeCanvasObject, makeNodePointerAreaPaint, defaultLinkColor } from './graph/renderers';
-import { NotePanel } from './components/NotePanel';
+import { NotePanel } from './components/NotePanel/NotePanel';
 import { ZoomControls } from './components/ZoomControls';
 import { SettingsModal } from './components/SettingsModal';
 import { AddNodeModal } from './components/AddNodeModal';
 import { ContextMenu } from './components/contextMenu';
 import { GraphViewSelector } from './components/GraphViewSelector';
+import { loadTagsIndex, rebuildTagsIndex, saveTagsIndex, ensureTagsField } from './utils/tagHelpers';
 
 /**
  * Graph-First Paper Notes (V1.2, 컴포넌트 분리 버전)
@@ -253,6 +254,44 @@ export default function App() {
   /** 그래프 뷰 모드 상태 */
   const [graphViewMode, setGraphViewMode] = useState('relationship'); // 'relationship' | 'tag' | 'timeline'
 
+  /** 태그 인덱스 상태 (자동완성용) */
+  const [tagsIndex, setTagsIndex] = useState({});
+
+  /** 태그 인덱스 초기화 */
+  useEffect(() => {
+    // localStorage에서 인덱스 로드
+    const storedIndex = loadTagsIndex();
+    
+    // 그래프 데이터에서 인덱스 재구축
+    const rebuiltIndex = rebuildTagsIndex(graph.nodes);
+    
+    // 병합 (stored + rebuilt)
+    const mergedIndex = { ...storedIndex };
+    Object.entries(rebuiltIndex).forEach(([category, tags]) => {
+      if (!mergedIndex[category]) {
+        mergedIndex[category] = tags;
+      } else {
+        // 중복 제거 및 병합
+        mergedIndex[category] = [...new Set([...mergedIndex[category], ...tags])].sort();
+      }
+    });
+    
+    setTagsIndex(mergedIndex);
+    saveTagsIndex(mergedIndex);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** 노드 데이터에 tags 필드 확보 (마이그레이션) */
+  useEffect(() => {
+    const needsMigration = graph.nodes.some(node => !node.tags || typeof node.tags !== 'object');
+    
+    if (needsMigration) {
+      setGraph(g => ({
+        ...g,
+        nodes: g.nodes.map(ensureTagsField)
+      }));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   /** 저장: 상태 변경 시 자동 저장 */
   useEffect(() => { storage.save && storage.save({ nodes: graph.nodes, links: graph.links, nodeStyles, lockedIds: Array.from(lockedIds) }); }, [graph, nodeStyles, lockedIds, storage]);
   /** 스타일 변경 시 캔버스만 리프레시(물리 리셋 방지) */
@@ -272,7 +311,18 @@ export default function App() {
 
   /** 노트 읽기/수정 */
   const selectedNote = useMemo(() => graph.nodes.find(n => n.id===selectedId) || null, [graph, selectedId]);
-  const updateNote = (patch) => setGraph((g)=>({ ...g, nodes: g.nodes.map(n => n.id===selectedId ? { ...n, ...patch } : n) }));
+  const updateNote = (patch) => {
+    setGraph((g)=>({ ...g, nodes: g.nodes.map(n => n.id===selectedId ? { ...n, ...patch } : n) }));
+    
+    // 태그가 업데이트되면 인덱스 재구축
+    if (patch.tags) {
+      const updatedIndex = rebuildTagsIndex(graph.nodes.map(n => 
+        n.id === selectedId ? { ...n, ...patch } : n
+      ));
+      setTagsIndex(updatedIndex);
+      saveTagsIndex(updatedIndex);
+    }
+  };
 
   /** 노드 추가 폼 */
   const [addForm, setAddForm] = useState({ title: '', group: 2, linkType: 'forward', connectTo: 'Core' });
@@ -494,6 +544,7 @@ export default function App() {
         isOpen={notePanelOpen}
         panelWidth={panelWidth}
         setPanelWidth={setPanelWidth}
+        tagsIndex={tagsIndex}
       />
 
       {/* 설정 모달 */}

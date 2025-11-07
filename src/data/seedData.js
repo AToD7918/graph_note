@@ -25,31 +25,36 @@ export function seedCore5() {
         id: 'Core',
         group: 1,
         title: 'Core Paper',
-        summary: '핵심 논문 요약'  // 토글 메뉴에 표시될 짧은 요약
+        summary: '핵심 논문 요약',  // 토글 메뉴에 표시될 짧은 요약
+        tags: {}  // 🆕 태그 객체 (카테고리별 태그)
       },
       { 
         id: 'F1', 
         group: 2,
         title: 'Later uses Core', 
-        summary: 'Core를 활용한 후속 연구'
+        summary: 'Core를 활용한 후속 연구',
+        tags: {}
       },
       { 
         id: 'F2', 
         group: 2, 
         title: 'Later uses Core', 
-        summary: 'Core 확장 연구'
+        summary: 'Core 확장 연구',
+        tags: {}
       },
       { 
         id: 'B1', 
         group: 3,
         title: 'Prior work 1', 
-        summary: 'Core 이전 배경연구'
+        summary: 'Core 이전 배경연구',
+        tags: {}
       },
       { 
         id: 'B2', 
         group: 3, 
         title: 'Prior work 2', 
-        summary: 'Core 기반 이론'
+        summary: 'Core 기반 이론',
+        tags: {}
       },
     ],
     

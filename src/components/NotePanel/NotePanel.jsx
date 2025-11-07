@@ -1,25 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { loadNoteDetail, saveNoteDetail } from '../adapters/noteStorage';
+import { loadNoteDetail, saveNoteDetail } from '../../adapters/noteStorage';
+import { TagInput } from './Tag/TagInput';
+import { addTagToIndex } from '../../utils/tagHelpers';
 
 /**
  * 📝 노트 패널 컴포넌트
  * 
  * 🎯 역할:
- * - 선택된 노드의 요약(summary) + 상세 노트(detailedNote) 편집
- * - 요약: localStorage (토글 메뉴에 표시)
+ * - 선택된 노드의 요약(summary) + 태그(tags) + 상세 노트(detailedNote) 편집
+ * - 요약, 태그: localStorage (토글 메뉴에 표시)
  * - 상세 노트: IndexedDB (노트 패널에서만 로드)
  * 
  * 📦 Props:
- * @param {Object} selectedNote - 현재 선택된 노드 { id, title, summary, group }
+ * @param {Object} selectedNote - 현재 선택된 노드 { id, title, summary, tags, group }
  * @param {Function} onClose - 패널 닫기 핸들러
- * @param {Function} onChange - 요약 변경 핸들러 (localStorage)
+ * @param {Function} onChange - 데이터 변경 핸들러 (localStorage)
  * @param {boolean} isOpen - 패널 열림 상태
  * @param {number} panelWidth - 패널 너비 (px)
  * @param {Function} setPanelWidth - 패널 너비 설정 함수
+ * @param {Object} tagsIndex - 전체 태그 인덱스 (자동완성용)
  */
-export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth, setPanelWidth }) {
+export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth, setPanelWidth, tagsIndex = {} }) {
   // 요약 (summary) - localStorage
   const [localSummary, setLocalSummary] = useState('');
+  
+  // 태그 (tags) - localStorage
+  const [localTags, setLocalTags] = useState({});
   
   // 상세 노트 (detailedNote) - IndexedDB
   const [detailedNote, setDetailedNote] = useState('');
@@ -103,6 +109,9 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
       setLocalSummary(selectedNote.summary || '');
       updateWordCount(selectedNote.summary || '', 'summary');
       
+      // 태그 로드 (localStorage)
+      setLocalTags(selectedNote.tags || {});
+      
       // 상세 노트 로드 (IndexedDB에서 Lazy Loading)
       loadDetailedNote(selectedNote.id);
     }
@@ -115,6 +124,22 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
     setLocalSummary(newValue);
     updateWordCount(newValue, 'summary');
     onChange({ summary: newValue });
+    setSaveStatus('saved');
+    setLastSaved(new Date());
+  };
+
+  // 태그 변경 핸들러 (localStorage)
+  const handleTagsChange = (newTags) => {
+    setLocalTags(newTags);
+    onChange({ tags: newTags });
+    
+    // 글로벌 인덱스 업데이트
+    Object.entries(newTags).forEach(([category, tags]) => {
+      tags.forEach(tag => {
+        addTagToIndex(category, tag);
+      });
+    });
+    
     setSaveStatus('saved');
     setLastSaved(new Date());
   };
@@ -230,6 +255,16 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
               💡 짧은 요약으로 노트의 핵심을 파악할 수 있습니다
             </div>
           </div>
+
+          {/* 구분선 */}
+          <div className="border-t border-white/10"></div>
+
+          {/* 태그 입력란 (localStorage) */}
+          <TagInput 
+            value={localTags}
+            onChange={handleTagsChange}
+            tagsIndex={tagsIndex}
+          />
 
           {/* 구분선 */}
           <div className="border-t border-white/10"></div>
