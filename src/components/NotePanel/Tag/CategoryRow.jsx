@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { TagChip } from './TagChip';
 import { AutocompleteSuggestions } from './AutocompleteSuggestions';
+import { formatTagForStorage } from '../../../utils/tagHelpers';
 
 /**
  * CategoryRow - 카테고리와 태그를 한 줄로 표시하는 컴포넌트
@@ -29,6 +30,7 @@ export function CategoryRow({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
   const inputRef = useRef(null);
+  const isSelectingRef = useRef(false); // 자동완성 선택 중인지 추적
 
   // 입력 모드 진입 시 포커스
   useEffect(() => {
@@ -52,9 +54,16 @@ export function CategoryRow({
   // 태그 추가 핸들러
   const handleAddTag = (tagName) => {
     const trimmed = tagName.trim();
-    if (trimmed && !tags.includes(trimmed)) {
-      onAddTag(category, trimmed);
+    if (!trimmed) return;
+    
+    // 계층 구조 정규화 (저장용 형식으로 변환)
+    const formatted = formatTagForStorage(trimmed);
+    
+    // 중복 체크 (정규화된 형식으로)
+    if (!tags.includes(formatted)) {
+      onAddTag(category, formatted);
     }
+    
     setTagInput('');
     setIsAddingTag(false);
     setShowSuggestions(false);
@@ -103,6 +112,12 @@ export function CategoryRow({
 
   // 입력 필드 외부 클릭 시 닫기
   const handleBlur = () => {
+    // 자동완성 선택 중이면 무시
+    if (isSelectingRef.current) {
+      isSelectingRef.current = false;
+      return;
+    }
+    
     setTimeout(() => {
       if (tagInput.trim()) {
         handleAddTag(tagInput);
@@ -174,8 +189,10 @@ export function CategoryRow({
                 suggestions={filteredSuggestions}
                 selectedIndex={selectedSuggestionIndex}
                 onSelect={(item) => {
-                  if (item) handleAddTag(item);
-                  else {
+                  if (item) {
+                    isSelectingRef.current = true;
+                    handleAddTag(item);
+                  } else {
                     setIsAddingTag(false);
                     setShowSuggestions(false);
                     setSelectedSuggestionIndex(0);

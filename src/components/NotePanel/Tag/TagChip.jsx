@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { formatTagForDisplay, parseHierarchicalTag } from '../../../utils/tagHelpers';
 
 /**
  * TagChip - 개별 태그 칩 컴포넌트
  * 
- * @param {string} label - 태그 이름
+ * @param {string} label - 태그 이름 (전체 경로)
  * @param {Function} onRemove - 삭제 핸들러
  * @param {string} color - 칩 색상 (선택)
  */
@@ -17,13 +18,21 @@ export function TagChip({ label, onRemove, color = 'blue' }) {
     orange: 'bg-orange-900/40 text-orange-300 border-orange-700/50 hover:bg-orange-900/60',
   };
 
+  // 표시용 이름 (마지막 태그만)
+  const displayName = formatTagForDisplay(label);
+  
+  // 툴팁용 전체 경로
+  const parsed = parseHierarchicalTag(label);
+  const tooltipText = parsed.depth > 1 ? parsed.fullPath : displayName;
+
   return (
     <div
       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-sm transition-all ${colorClasses[color] || colorClasses.blue}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      title={tooltipText}
     >
-      <span className="select-none">{label}</span>
+      <span className="select-none">{displayName}</span>
       {isHovered && (
         <button
           onClick={onRemove}

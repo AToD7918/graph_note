@@ -5,7 +5,8 @@ import {
   removeTagFromNode, 
   removeCategoryFromNode,
   validateCategoryName,
-  validateTagName 
+  validateTagName,
+  removeTagFromIndex
 } from '../../../utils/tagHelpers';
 
 /**
@@ -42,6 +43,9 @@ export function TagInput({ value = {}, onChange, tagsIndex = {} }) {
     const updated = removeTagFromNode(localTags, category, tag);
     setLocalTags(updated);
     onChange(updated);
+    
+    // 글로벌 인덱스에서도 제거
+    removeTagFromIndex(category, tag);
   };
 
   // 카테고리 제거
@@ -98,6 +102,13 @@ export function TagInput({ value = {}, onChange, tagsIndex = {} }) {
   // 기존 카테고리 목록
   const categories = Object.keys(localTags);
 
+  // 카테고리별 자동완성 제안 생성 (계층 구조 고려)
+  const getCategorySuggestions = (category) => {
+    // tagsIndex에서 해당 카테고리의 모든 태그를 가져옴
+    // 이미 addTagToIndex에서 계층 구조를 모두 추가했으므로 그대로 반환
+    return tagsIndex[category] || [];
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {/* 라벨 */}
@@ -125,7 +136,7 @@ export function TagInput({ value = {}, onChange, tagsIndex = {} }) {
             onRemoveTag={handleRemoveTag}
             onRemoveCategory={handleRemoveCategory}
             onAddTag={handleAddTag}
-            tagSuggestions={tagsIndex[category] || []}
+            tagSuggestions={getCategorySuggestions(category)}
           />
         ))}
 
