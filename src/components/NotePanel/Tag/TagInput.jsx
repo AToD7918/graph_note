@@ -107,10 +107,11 @@ export function TagInput({ value = {}, onChange, tagsIndex = {} }) {
         </label>
         <button
           onClick={() => setIsAddingCategory(true)}
-          className="px-2 py-1 text-xs text-gray-400 hover:text-blue-400 border border-dashed border-gray-600 hover:border-blue-500 rounded transition-colors"
+          className="px-2.5 py-1 text-xs text-gray-400 hover:text-blue-400 border border-dashed border-gray-600 hover:border-blue-500 rounded transition-colors flex items-center gap-1"
           title="Add category"
         >
-          +
+          <span>+</span>
+          <span>Category</span>
         </button>
       </div>
 
@@ -163,12 +164,6 @@ export function TagInput({ value = {}, onChange, tagsIndex = {} }) {
             </div>
           </div>
         ) : null}
-      </div>
-
-      {/* 도움말 */}
-      <div className="text-xs opacity-50 space-y-1">
-        <div>💡 각 카테고리마다 여러 태그를 추가할 수 있습니다</div>
-        <div>⚡ 태그 입력 시 해당 카테고리의 기존 태그가 자동완성됩니다</div>
       </div>
     </div>
   );

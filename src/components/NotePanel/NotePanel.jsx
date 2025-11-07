@@ -237,23 +237,15 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
         <div className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto">
           {/* 요약 입력란 (localStorage) */}
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold opacity-90">
-                📋 Summary (토글 메뉴에 표시)
-              </label>
-              <span className="text-xs opacity-50">
-                {summaryWords} words
-              </span>
-            </div>
+            <label className="text-sm font-semibold opacity-90">
+              📋 Summary (토글 메뉴에 표시)
+            </label>
             <textarea 
-              className="w-full h-24 bg-black/40 border border-white/10 rounded p-3 text-sm resize-none focus:outline-none focus:border-teal-500/50 transition-colors"
+              className="w-full h-16 bg-black/40 border border-white/10 rounded p-3 text-sm resize-none focus:outline-none focus:border-teal-500/50 transition-colors"
               placeholder="노드 클릭 시 보여질 짧은 요약을 작성하세요..."
               value={localSummary}
               onChange={handleSummaryChange}
             />
-            <div className="text-xs opacity-50">
-              💡 짧은 요약으로 노트의 핵심을 파악할 수 있습니다
-            </div>
           </div>
 
           {/* 구분선 */}
@@ -271,20 +263,15 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
 
           {/* 상세 노트 입력란 (IndexedDB) */}
           <div className="flex-1 flex flex-col gap-2 min-h-0">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <label className="text-sm font-semibold opacity-90">
                 📝 Detailed Note (상세 내용)
               </label>
-              <div className="flex items-center gap-2">
-                <span className="text-xs opacity-50">
-                  {detailedWords} words
+              {isLoading && (
+                <span className="text-xs text-blue-400">
+                  🔄 Loading...
                 </span>
-                {isLoading && (
-                  <span className="text-xs text-blue-400">
-                    🔄 Loading...
-                  </span>
-                )}
-              </div>
+              )}
             </div>
             <textarea 
               className="flex-1 w-full bg-black/40 border border-white/10 rounded p-3 text-sm resize-none focus:outline-none focus:border-teal-500/50 transition-colors min-h-[300px]"
@@ -302,9 +289,6 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
               onChange={handleDetailedNoteChange}
               disabled={isLoading}
             />
-            <div className="text-xs opacity-50">
-              💾 IndexedDB에 자동 저장 (대용량 지원)
-            </div>
           </div>
         </div>
 

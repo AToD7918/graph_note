@@ -114,10 +114,10 @@ export function CategoryRow({
   };
 
   return (
-    <div className="flex items-start border border-gray-600 rounded-lg bg-gray-800/50 group">
+    <div className="flex items-stretch border border-gray-600 rounded-lg bg-gray-800/50 group">
       {/* 왼쪽: 카테고리 */}
-      <div className="w-36 flex-shrink-0 border-r border-gray-600 bg-gray-800/80 rounded-l-lg">
-        <div className="px-3 py-2.5 flex items-center justify-center gap-2 min-h-[42px]">
+      <div className="w-36 flex-shrink-0 border-r border-gray-600 bg-gray-800/80 rounded-l-lg flex items-center">
+        <div className="px-3 py-2.5 flex items-center justify-center gap-2 min-h-[42px] w-full">
           {isNew ? (
             <input
               type="text"
