@@ -12,6 +12,7 @@ import { ZoomControls } from './components/ZoomControls';
 import { SettingsModal } from './components/SettingsModal';
 import { AddNodeModal } from './components/AddNodeModal';
 import { ContextMenu } from './components/contextMenu';
+import { GraphViewSelector } from './components/GraphViewSelector';
 
 /**
  * Graph-First Paper Notes (V1.2, 컴포넌트 분리 버전)
@@ -248,6 +249,9 @@ export default function App() {
   
   /** 줌 레벨 상태 */
   const [zoomLevel, setZoomLevel] = useState(1.0);
+  
+  /** 그래프 뷰 모드 상태 */
+  const [graphViewMode, setGraphViewMode] = useState('relationship'); // 'relationship' | 'tag' | 'timeline'
 
   /** 저장: 상태 변경 시 자동 저장 */
   useEffect(() => { storage.save && storage.save({ nodes: graph.nodes, links: graph.links, nodeStyles, lockedIds: Array.from(lockedIds) }); }, [graph, nodeStyles, lockedIds, storage]);
@@ -399,6 +403,12 @@ export default function App() {
             onZoomChange={handleZoomChange}
           />
         </div>
+
+        {/* Graph View Selector - 그래프 우측 상단 */}
+        <GraphViewSelector 
+          currentView={graphViewMode}
+          onViewChange={setGraphViewMode}
+        />
 
         {/* Zoom Controls */}
         <ZoomControls 
