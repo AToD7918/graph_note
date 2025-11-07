@@ -9,6 +9,7 @@ import { computeRadialAnchors, makeCurvatureAccessor } from './graph/layout';
 import { makeNodeCanvasObject, makeNodePointerAreaPaint, defaultLinkColor } from './graph/renderers';
 import { NotePanel } from './components/NotePanel';
 import { ZoomControls } from './components/ZoomControls';
+import { SettingsModal } from './components/SettingsModal';
 
 /**
  * Graph-First Paper Notes (V1.2, 컴포넌트 분리 버전)
@@ -218,38 +219,6 @@ function ContextMenu({ visible, x, y, nodeId, nodeStyles, setStyle, lockedIds, t
         <label className="flex items-center gap-2 text-sm ml-2">
           <input type="checkbox" checked={!!current.glow} onChange={(e)=>setStyle(nodeId,{glow:e.target.checked})} /> Emphasis glow
         </label>
-      </div>
-    </div>
-  );
-}
-
-/********************** [components] 설정 모달 **********************/
-function SettingsModal({ open, onClose, storageMode, setStorageMode, clearLocal }) {
-  if (!open) return null;
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content modal-content-settings" onClick={(e)=>e.stopPropagation()}>
-        <div className="text-lg font-semibold mb-3">Settings</div>
-        <div className="space-y-4 text-sm">
-          <div>
-            <div className="opacity-70 mb-1">Storage Mode</div>
-            <div className="flex gap-2">
-              <button className={`px-3 py-1 rounded ${storageMode==='local'?'bg-white/10':''}`} onClick={()=>setStorageMode('local')}>Local (default)</button>
-              <button className={`px-3 py-1 rounded ${storageMode==='remote'?'bg-white/10':''}`} onClick={()=>setStorageMode('remote')}>Remote (placeholder)</button>
-            </div>
-            <div className="text-xs opacity-60 mt-1">Remote는 아직 미구현이며, 후에 서버 연동 시 어댑터만 교체하면 됩니다.</div>
-          </div>
-          <div>
-            <div className="opacity-70 mb-1">Layout</div>
-            <div className="text-xs opacity-70">기본은 동심원 고정입니다. 개별 노드 우클릭으로 "Switch to Force"(unlock) 전환 가능.</div>
-          </div>
-          <div>
-            <button className="px-3 py-1 rounded bg-red-600/80 hover:bg-red-600" onClick={clearLocal}>Clear Local Cache</button>
-          </div>
-        </div>
-        <div className="mt-4 text-right">
-          <button className="px-3 py-1 rounded bg-white/10 hover:bg-white/20" onClick={onClose}>Close</button>
-        </div>
       </div>
     </div>
   );
