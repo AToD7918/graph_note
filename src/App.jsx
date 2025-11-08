@@ -49,6 +49,7 @@ function GraphView({
   onNodeClickWithPosition, // 새로운 prop: 클릭 위치 포함
   closePreviewMenu, // 미리보기 메뉴 닫기
   onZoomChange, // 줌 레벨 변경 핸들러
+  onNodeDragEnd, // 노드 드래그 종료 핸들러
 }) {
   // 커서 포인터 처리(안전하게 컨테이너 div에 적용)
   const onNodeHover = (n) => { 
@@ -56,6 +57,14 @@ function GraphView({
     if (!el) return; 
     el.style.cursor = n ? 'pointer' : 'default'; 
   };
+  
+  // 드래그 종료 핸들러 래핑 (디버깅용)
+  const handleDragEnd = useCallback((node) => {
+    console.log('🔵 GraphView에서 드래그 종료 감지:', node?.id, node);
+    if (onNodeDragEnd) {
+      onNodeDragEnd(node);
+    }
+  }, [onNodeDragEnd]);
   // 좌클릭: 토글 메뉴 표시
   const onNodeClick = (node, evt) => { 
     if (!node) return;
@@ -75,19 +84,25 @@ function GraphView({
   };
   // 배경 클릭: 모든 메뉴 닫기
   const onBackgroundClick = () => {
-    closePreviewMenu();
-    setContextMenu((m)=>({...m, visible:false}));
+    // React 렌더링 사이클 밖에서 state 업데이트하기 위해 비동기 처리
+    requestAnimationFrame(() => {
+      closePreviewMenu();
+      setContextMenu((m)=>({...m, visible:false}));
+    });
   };
   // 줌/드래그 시: 모든 메뉴 닫기 + 줌 레벨 업데이트
   const onZoom = () => {
-    closePreviewMenu();
-    setContextMenu((m)=>({...m, visible:false}));
-    
-    // 줌 레벨 업데이트 (스크롤 줌 시)
-    if (fgRef.current && onZoomChange) {
-      const currentZoom = fgRef.current.zoom();
-      onZoomChange(currentZoom);
-    }
+    // React 렌더링 사이클 밖에서 state 업데이트하기 위해 비동기 처리
+    requestAnimationFrame(() => {
+      closePreviewMenu();
+      setContextMenu((m)=>({...m, visible:false}));
+      
+      // 줌 레벨 업데이트 (스크롤 줌 시)
+      if (fgRef.current && onZoomChange) {
+        const currentZoom = fgRef.current.zoom();
+        onZoomChange(currentZoom);
+      }
+    });
   };
 
   // 캔버스 노드 그리기 콜백 구성
@@ -113,8 +128,18 @@ function GraphView({
 
   // 노드 드래그 시 화면 경계 체크 및 자동 축소
   const onNodeDragRef = useRef(null);
+  const dragStartLoggedRef = useRef(new Set());
+  
   const onNodeDrag = useCallback((node) => {
     if (!fgRef.current || !containerRef.current) return;
+    
+    // 드래그 시작 로그 (노드당 한 번만)
+    if (node && !dragStartLoggedRef.current.has(node.id)) {
+      console.log('🟢 드래그 시작:', node.id);
+      dragStartLoggedRef.current.add(node.id);
+      // 5초 후 로그 추적 리셋 (다음 드래그를 위해)
+      setTimeout(() => dragStartLoggedRef.current.delete(node.id), 5000);
+    }
     
     const padding = 50; // 경계 여유 공간
     const { width, height } = containerRef.current.getBoundingClientRect();
@@ -170,6 +195,7 @@ function GraphView({
       nodeCanvasObject={nodeCanvasObject}
       nodePointerAreaPaint={nodePointerAreaPaint}
       onNodeDrag={onNodeDrag}
+      onNodeDragEnd={handleDragEnd}
     />
   );
 }
@@ -255,6 +281,9 @@ export default function App() {
   /** 그래프 뷰 모드 상태 */
   const [graphViewMode, setGraphViewMode] = useState('relationship'); // 'relationship' | 'tag' | 'timeline'
 
+  /** 노드 위치 상태 (localStorage에서 로드) */
+  const [savedNodePositions, setSavedNodePositions] = useState({});
+
   /** 태그 인덱스 상태 (자동완성용) */
   const [tagsIndex, setTagsIndex] = useState({});
 
@@ -293,22 +322,84 @@ export default function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** 초기 로드 시 노드 위치 불러오기 */
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('graphNodePositions');
+      if (saved) {
+        const positions = JSON.parse(saved);
+        setSavedNodePositions(positions);
+        console.log('📍 노드 위치 로드 완료:', Object.keys(positions).length, '개');
+      }
+    } catch (error) {
+      console.error('노드 위치 로드 실패:', error);
+    }
+  }, []); // 초기 로드만
+
   /** 저장: 상태 변경 시 자동 저장 */
   useEffect(() => { storage.save && storage.save({ nodes: graph.nodes, links: graph.links, nodeStyles, lockedIds: Array.from(lockedIds) }); }, [graph, nodeStyles, lockedIds, storage]);
   /** 스타일 변경 시 캔버스만 리프레시(물리 리셋 방지) */
   useEffect(() => { fgRef.current?.refresh?.(); }, [nodeStyles]);
 
-  /** 동심원 앵커 & 고정 좌표 적용 */
+  const saveNodePositions = useCallback((updatedNode) => {
+    try {
+      if (!updatedNode || updatedNode.x == null || updatedNode.y == null) return;
+      
+      // 함수형 업데이트로 최신 state 사용
+      setSavedNodePositions(prevPositions => {
+        const newPositions = {
+          ...prevPositions,
+          [updatedNode.id]: { x: updatedNode.x, y: updatedNode.y }
+        };
+        
+        // localStorage에 저장
+        localStorage.setItem('graphNodePositions', JSON.stringify(newPositions));
+        console.log('💾 노드 위치 저장:', updatedNode.id, `(x: ${updatedNode.x.toFixed(1)}, y: ${updatedNode.y.toFixed(1)})`);
+        
+        return newPositions;
+      });
+    } catch (error) {
+      console.error('노드 위치 저장 실패:', error);
+    }
+  }, []);
+
+  const savePositionsTimerRef = useRef(null);
+  const scheduleSavePositions = useCallback((node) => {
+    if (savePositionsTimerRef.current) {
+      clearTimeout(savePositionsTimerRef.current);
+    }
+    // 400ms 디바운스 (드래그 중에는 저장하지 않음)
+    savePositionsTimerRef.current = setTimeout(() => {
+      saveNodePositions(node);
+    }, 400);
+  }, [saveNodePositions]);
+
+  /** 동심원 앵커 & 고정 좌표 적용 + 저장된 위치 복원 */
   const radialAnchors = useMemo(() => computeRadialAnchors(graph), [graph]);
   const derivedData = useMemo(() => {
     const nodes = graph.nodes.map((n) => ({ ...n }));
     const links = graph.links.map((l) => ({ source: toId(l.source), target: toId(l.target), type: l.type }));
+    
     for (const n of nodes) {
-      if (lockedIds.has(n.id)) { const a = radialAnchors.get(n.id); n.fx = a?.x ?? 0; n.fy = a?.y ?? 0; }
-      else { n.fx = undefined; n.fy = undefined; }
+      if (lockedIds.has(n.id)) { 
+        // 동심원 고정 노드: 앵커 위치 사용
+        const a = radialAnchors.get(n.id); 
+        n.fx = a?.x ?? 0; 
+        n.fy = a?.y ?? 0; 
+      } else if (savedNodePositions[n.id]) {
+        // 저장된 위치가 있는 자유 노드: 저장된 위치로 초기화
+        n.x = savedNodePositions[n.id].x;
+        n.y = savedNodePositions[n.id].y;
+        n.fx = undefined; 
+        n.fy = undefined;
+      } else { 
+        // 새 노드: 자유 이동
+        n.fx = undefined; 
+        n.fy = undefined; 
+      }
     }
     return { nodes, links };
-  }, [graph, lockedIds, radialAnchors]);
+  }, [graph, lockedIds, radialAnchors, savedNodePositions]);
 
   /** 노트 읽기/수정 */
   const selectedNote = useMemo(() => graph.nodes.find(n => n.id===selectedId) || null, [graph, selectedId]);
@@ -330,17 +421,63 @@ export default function App() {
   /** 노드 추가 */
   const addNode = () => {
     const id = genId();
+    const group = Number(addForm.group) || 2;
+    
     setGraph((g)=>({
-      nodes: [...g.nodes, { id, group: Number(addForm.group)||2, title: addForm.title||'Untitled', summary: '' }],
+      nodes: [...g.nodes, { id, group, title: addForm.title||'Untitled', summary: '' }],
       links: [...g.links, { source: addForm.linkType==='forward'? (addForm.connectTo||'Core') : id, target: addForm.linkType==='forward'? id : (addForm.connectTo||'Core'), type: addForm.linkType }]
     }));
-    setLockedIds((s)=> new Set([...Array.from(s), id]));
+    
+    // Group 0 또는 1만 동심원에 고정 (Core 등)
+    // Group 2 이상은 자유 이동
+    if (group <= 1) {
+      setLockedIds((s)=> new Set([...Array.from(s), id]));
+      console.log('🔒 동심원 고정 노드 생성:', id, 'Group:', group);
+    } else {
+      console.log('🆓 자유 이동 노드 생성:', id, 'Group:', group);
+    }
+    
     setShowAdd(false);
+    
+    // 새 노드 위치 저장: 물리 시뮬레이션 안정화 후 (2초)
+    setTimeout(() => {
+      if (fgRef.current) {
+        const graphData = fgRef.current.graphData();
+        const newNode = graphData.nodes.find(n => n.id === id);
+        if (newNode && newNode.x != null && newNode.y != null) {
+          saveNodePositions(newNode);
+          console.log('🆕 새 노드 위치 자동 저장:', id);
+        }
+      }
+    }, 2000);
   };
 
   /** 스타일/락 헬퍼 (하위 컴포넌트에 주입) */
   const toggleLock = (nodeId) => setLockedIds((prev)=>{ const next = new Set(prev); if(next.has(nodeId)) next.delete(nodeId); else next.add(nodeId); return next; });
   const setStyle = (nodeId, patch) => setNodeStyles((s)=> ({ ...s, [nodeId]: { ...(s[nodeId]||{}), ...patch } }));
+
+  /** 노드 드래그 종료 핸들러 */
+  const handleNodeDragEnd = useCallback((node) => {
+    if (!node) {
+      console.log('⚠️ handleNodeDragEnd: node가 없음');
+      return;
+    }
+    
+    // 동심원에 고정된 노드(fx, fy가 설정된 노드)는 저장하지 않음
+    // fx, fy가 있으면 force-graph가 해당 위치에 고정시킴
+    if (node.fx != null || node.fy != null) {
+      console.log('⚠️ 동심원 고정 노드는 위치 저장 안함:', node.id, `(fx: ${node.fx}, fy: ${node.fy})`);
+      return;
+    }
+    
+    // 자유 이동 노드만 저장
+    if (node.x != null && node.y != null) {
+      console.log('🎯 드래그 종료 감지:', node.id, `(x: ${node.x.toFixed(1)}, y: ${node.y.toFixed(1)})`);
+      scheduleSavePositions(node);
+    } else {
+      console.log('⚠️ 노드 좌표 없음:', node.id, node);
+    }
+  }, [scheduleSavePositions]);
 
   /** 컨텍스트 메뉴 global 핸들러: ESC/바깥 클릭 닫기 */
   useEffect(() => {
@@ -359,6 +496,15 @@ export default function App() {
     el.addEventListener('contextmenu', h); 
     return () => el.removeEventListener('contextmenu', h); 
   }, [containerRef]);
+
+  /** 컴포넌트 언마운트 시 타이머 정리 */
+  useEffect(() => {
+    return () => {
+      if (savePositionsTimerRef.current) {
+        clearTimeout(savePositionsTimerRef.current);
+      }
+    };
+  }, []);
 
   /** 로컬 캐시 삭제 */
   const clearLocal = () => { if (storage.mode==='local' && storage.clear) { storage.clear(); alert('Local cache cleared. Reload to see initial seed.'); } };
@@ -453,6 +599,7 @@ export default function App() {
             onNodeClickWithPosition={handleNodeClickWithPosition}
             closePreviewMenu={closePreviewMenu}
             onZoomChange={handleZoomChange}
+            onNodeDragEnd={handleNodeDragEnd}
           />
         </div>
 
