@@ -375,29 +375,37 @@ export default function App() {
   }, [saveNodePositions]);
 
   /** 동심원 앵커 & 고정 좌표 적용 + 저장된 위치 복원 */
-  const radialAnchors = useMemo(() => computeRadialAnchors(graph), [graph]);
+  const radialAnchors = useMemo(() => computeRadialAnchors(graph, lockedIds), [graph, lockedIds]);
   const derivedData = useMemo(() => {
     const nodes = graph.nodes.map((n) => ({ ...n }));
     const links = graph.links.map((l) => ({ source: toId(l.source), target: toId(l.target), type: l.type }));
+    
+    let lockedCount = 0, savedCount = 0, newCount = 0;
     
     for (const n of nodes) {
       if (lockedIds.has(n.id)) { 
         // 동심원 고정 노드: 앵커 위치 사용
         const a = radialAnchors.get(n.id); 
         n.fx = a?.x ?? 0; 
-        n.fy = a?.y ?? 0; 
+        n.fy = a?.y ?? 0;
+        lockedCount++;
       } else if (savedNodePositions[n.id]) {
         // 저장된 위치가 있는 자유 노드: 저장된 위치로 초기화
         n.x = savedNodePositions[n.id].x;
         n.y = savedNodePositions[n.id].y;
         n.fx = undefined; 
         n.fy = undefined;
+        savedCount++;
       } else { 
         // 새 노드: 자유 이동
         n.fx = undefined; 
-        n.fy = undefined; 
+        n.fy = undefined;
+        newCount++;
       }
     }
+    
+    console.log(`📊 노드 상태: 동심원 고정 ${lockedCount}개, 저장된 위치 ${savedCount}개, 새 노드 ${newCount}개`);
+    
     return { nodes, links };
   }, [graph, lockedIds, radialAnchors, savedNodePositions]);
 

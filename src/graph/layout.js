@@ -9,22 +9,40 @@ import { toId } from '../utils/helpers';
  * - 후방 참조(Backward): Core가 인용한 선행 연구들 → 안쪽 원
  * 
  * @param {Object} baseData - { nodes: [], links: [] }
+ * @param {Set<string>} lockedIds - 동심원에 고정할 노드 ID 집합 (선택적)
  * @returns {Map<string, {x, y}>} 각 노드의 고정 위치 (앵커)
  * 
  * ? 알고리즘 단계:
- * 1. 그래프 구조 분석 (인접 리스트 생성)
- * 2. BFS로 각 노드의 깊이 계산
- * 3. 깊이별로 노드를 그룹화
- * 4. 각 그룹을 원형으로 배치
+ * 1. lockedIds에 있는 노드만 필터링
+ * 2. 그래프 구조 분석 (인접 리스트 생성)
+ * 3. BFS로 각 노드의 깊이 계산
+ * 4. 깊이별로 노드를 그룹화
+ * 5. 각 그룹을 원형으로 배치
  */
-export function computeRadialAnchors(baseData) {
-  // ? 데이터 복사 (원본 보존)
-  const nodes = baseData.nodes.map((n) => ({ ...n }));
-  const links = baseData.links.map((l) => ({ 
-    source: toId(l.source),  // 객체일 수도 있으므로 ID 추출
-    target: toId(l.target), 
-    type: l.type 
-  }));
+export function computeRadialAnchors(baseData, lockedIds = null) {
+  // ? lockedIds가 제공되면 해당 노드들만 필터링
+  const allNodes = baseData.nodes.map((n) => ({ ...n }));
+  const nodes = lockedIds 
+    ? allNodes.filter(n => lockedIds.has(n.id))
+    : allNodes;
+  
+  // 고정 노드가 없으면 빈 Map 반환
+  if (nodes.length === 0) {
+    console.log('?? 동심원 고정 노드가 없습니다.');
+    return new Map();
+  }
+  
+  // ? 고정 노드들 간의 링크만 추출
+  const nodeIds = new Set(nodes.map(n => n.id));
+  const links = baseData.links
+    .map((l) => ({ 
+      source: toId(l.source),
+      target: toId(l.target), 
+      type: l.type 
+    }))
+    .filter(l => nodeIds.has(l.source) && nodeIds.has(l.target)); // 양쪽 모두 고정 노드인 링크만
+  
+  console.log(`? 동심원 계산: ${nodes.length}개 고정 노드, ${links.length}개 내부 링크`);
   
   // ? Core 노드 찾기 (중심이 될 노드)
   // 'core'라는 id를 가진 노드, 없으면 첫 번째 노드
