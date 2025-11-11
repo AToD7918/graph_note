@@ -21,84 +21,137 @@ export function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-content-add-node" onClick={(e)=>e.stopPropagation()}>
-        <div className="text-lg font-semibold mb-3">Add Node</div>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">Title</span>
+        {/* 헤더 */}
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+          <div>
+            <h2 className="text-lg font-bold text-white">Add New Node</h2>
+            <p className="text-xs text-white/50 mt-0.5">Create a new node in your graph</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white text-sm"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* 폼 필드 */}
+        <div className="space-y-3">
+          {/* Title 입력 */}
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-white/90">
+              <span className="text-teal-400 text-sm">📝</span>
+              Node Title
+            </label>
             <input 
-              className="input-field" 
+              className="input-field w-full px-3 py-2 text-sm" 
               value={form.title} 
               onChange={(e)=>setForm({...form, title:e.target.value})} 
-              placeholder="e.g., New Paper" 
+              placeholder="Enter node title..."
+              autoFocus
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">Link Type (연결 방향)</span>
-            <select 
-              className="input-field" 
-              value={form.linkType} 
-              onChange={(e)=>{
-                const linkType = e.target.value;
-                // linkType에 따라 기본 group 설정: forward -> 2, backward -> 3
-                // isCore가 true면 group은 1로 덮어씌워짐
-                const group = form.isCore ? 1 : (linkType === 'forward' ? 2 : 3);
-                setForm({...form, linkType, group});
-              }}
-            >
-              <option value="forward">기준 → 새 노드 (Forward)</option>
-              <option value="backward">새 노드 → 기준 (Backward)</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">Connect To</span>
-            <select 
-              className="input-field" 
-              value={form.connectTo} 
-              onChange={(e)=>setForm({...form, connectTo:e.target.value})}
-            >
-              {graph.nodes.map(n=> (
-                <option key={n.id} value={n.id}>{n.id}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={form.isCore || false}
-              onChange={(e)=>{
-                const isCore = e.target.checked;
-                // Core 노드면 group을 1로, 아니면 linkType에 따라 2 or 3
-                const group = isCore ? 1 : (form.linkType === 'forward' ? 2 : 3);
-                setForm({...form, isCore, group});
-              }}
-              className="w-4 h-4"
-            />
-            <span className="opacity-70">Core Node (내부 흰 원) - Group 1</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={form.isLocked || false}
-              onChange={(e)=>{
-                setForm({...form, isLocked: e.target.checked});
-              }}
-              className="w-4 h-4"
-            />
-            <span className="opacity-70">동심원 고정 (흰색 테두리)</span>
-          </label>
+          </div>
+
+          {/* 연결 설정 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-white/90">
+                <span className="text-teal-400 text-sm">🔗</span>
+                Link Direction
+              </label>
+              <select 
+                className="input-field w-full px-3 py-2 text-sm" 
+                value={form.linkType} 
+                onChange={(e)=>{
+                  const linkType = e.target.value;
+                  const group = form.isCore ? 1 : (linkType === 'forward' ? 2 : 3);
+                  setForm({...form, linkType, group});
+                }}
+              >
+                <option value="forward">→ Forward</option>
+                <option value="backward">← Backward</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-white/90">
+                <span className="text-teal-400 text-sm">🎯</span>
+                Connect To
+              </label>
+              <select 
+                className="input-field w-full px-3 py-2 text-sm" 
+                value={form.connectTo} 
+                onChange={(e)=>setForm({...form, connectTo:e.target.value})}
+              >
+                {graph.nodes.map(n=> (
+                  <option key={n.id} value={n.id}>{n.id}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* 노드 속성 */}
+          <div className="space-y-2 p-3 rounded-lg bg-white/5 border border-white/10">
+            <div className="text-xs font-medium text-white/90 mb-2">Node Properties</div>
+            
+            <label className="flex items-center gap-2 cursor-pointer group p-1.5 rounded hover:bg-white/5 transition-colors">
+              <input 
+                type="checkbox" 
+                checked={form.isCore || false}
+                onChange={(e)=>{
+                  const isCore = e.target.checked;
+                  const group = isCore ? 1 : (form.linkType === 'forward' ? 2 : 3);
+                  setForm({...form, isCore, group});
+                }}
+                className="w-4 h-4 rounded border-2 border-white/30 checked:bg-teal-500 checked:border-teal-500 transition-colors"
+              />
+              <div className="flex-1">
+                <div className="text-xs font-medium text-white/90 group-hover:text-white transition-colors">
+                  Core Node
+                </div>
+                <div className="text-[10px] text-white/50 leading-tight">
+                  Group 1 • Inner white circle
+                </div>
+              </div>
+              <span className="text-base">⭕</span>
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer group p-1.5 rounded hover:bg-white/5 transition-colors">
+              <input 
+                type="checkbox" 
+                checked={form.isLocked || false}
+                onChange={(e)=>{
+                  setForm({...form, isLocked: e.target.checked});
+                }}
+                className="w-4 h-4 rounded border-2 border-white/30 checked:bg-teal-500 checked:border-teal-500 transition-colors"
+              />
+              <div className="flex-1">
+                <div className="text-xs font-medium text-white/90 group-hover:text-white transition-colors">
+                  Lock to Radial Layout
+                </div>
+                <div className="text-[10px] text-white/50 leading-tight">
+                  Fixed position • White border
+                </div>
+              </div>
+              <span className="text-base">🔒</span>
+            </label>
+          </div>
         </div>
-        <div className="mt-4 flex items-center justify-end gap-2">
+
+        {/* 액션 버튼 */}
+        <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-end gap-2">
           <button 
-            className="px-3 py-1 rounded bg-white/10 hover:bg-white/20" 
+            className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-white/80 hover:text-white font-medium text-sm" 
             onClick={onClose}
           >
             Cancel
           </button>
           <button 
-            className="px-3 py-1 rounded bg-teal-500 text-black font-semibold hover:bg-teal-400" 
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-black font-semibold shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 transition-all text-sm" 
             onClick={addNode}
           >
-            Add
+            Create Node
           </button>
         </div>
       </div>
