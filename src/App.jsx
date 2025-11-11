@@ -58,9 +58,8 @@ function GraphView({
     el.style.cursor = n ? 'pointer' : 'default'; 
   };
   
-  // 드래그 종료 핸들러 래핑 (디버깅용)
+  // 드래그 종료 핸들러
   const handleDragEnd = useCallback((node) => {
-    console.log('🔵 GraphView에서 드래그 종료 감지:', node?.id, node);
     if (onNodeDragEnd) {
       onNodeDragEnd(node);
     }
@@ -128,7 +127,6 @@ function GraphView({
 
   // 노드 드래그 시 화면 경계 체크 및 자동 축소
   const onNodeDragRef = useRef(null);
-  const dragStartLoggedRef = useRef(new Set());
   
   const onNodeDrag = useCallback((node) => {
     if (!fgRef.current || !containerRef.current) return;
@@ -137,14 +135,6 @@ function GraphView({
     if (node && node.fx != null && node.fy != null) {
       node.fx = null;
       node.fy = null;
-    }
-    
-    // 드래그 시작 로그 (노드당 한 번만)
-    if (node && !dragStartLoggedRef.current.has(node.id)) {
-      console.log('🟢 드래그 시작:', node.id);
-      dragStartLoggedRef.current.add(node.id);
-      // 5초 후 로그 추적 리셋 (다음 드래그를 위해)
-      setTimeout(() => dragStartLoggedRef.current.delete(node.id), 5000);
     }
     
     const padding = 50; // 경계 여유 공간
@@ -392,8 +382,6 @@ export default function App() {
     // 노드 ID -> 노드 객체 맵 생성 (빠른 조회)
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
     
-    let lockedCount = 0, savedCount = 0, newCount = 0;
-    
     for (const n of nodes) {
       if (lockedIds.has(n.id)) { 
         // 동심원 고정 노드: 앵커 위치 사용
@@ -403,7 +391,6 @@ export default function App() {
         // 속도 완전히 제거
         n.vx = 0;
         n.vy = 0;
-        lockedCount++;
       } else if (savedNodePositions[n.id]) {
         // 저장된 위치가 있는 자유 노드: 저장된 위치에 완전히 고정
         n.x = savedNodePositions[n.id].x;
@@ -414,7 +401,6 @@ export default function App() {
         // 속도 완전히 제거
         n.vx = 0;
         n.vy = 0;
-        savedCount++;
       } else { 
         // 새 노드: 연결된 부모 노드 근처에 초기 배치
         // 초기 위치 계산 후 fx, fy로 고정
@@ -519,7 +505,6 @@ export default function App() {
               const angle = Math.random() * 2 * Math.PI;
               finalX = parentX + fallbackDistance * Math.cos(angle);
               finalY = parentY + fallbackDistance * Math.sin(angle);
-              console.log(`⚠️ 새 노드 ${n.id} → 충돌 회피 실패, 거리 증가 (${finalX.toFixed(1)}, ${finalY.toFixed(1)})`);
             }
             
             n.x = finalX;
@@ -540,12 +525,8 @@ export default function App() {
             n.vy = 0;
           }
         }
-        
-        newCount++;
       }
     }
-    
-    console.log(`📊 노드 상태: 동심원 고정 ${lockedCount}개, 저장된 위치 ${savedCount}개, 새 노드 ${newCount}개`);
     
     return { nodes, links };
   }, [graph, lockedIds, radialAnchors, savedNodePositions]);
@@ -660,7 +641,6 @@ export default function App() {
         const angle = Math.random() * 2 * Math.PI;
         initialX = parentX + fallbackDistance * Math.cos(angle);
         initialY = parentY + fallbackDistance * Math.sin(angle);
-        console.log(`⚠️ 새 노드 ${id} 충돌 회피 실패, 거리 증가 (${initialX.toFixed(1)}, ${initialY.toFixed(1)})`);
       }
       
       // 즉시 savedNodePositions에 저장하여 다음 렌더링에서 고정되도록 함
@@ -668,8 +648,6 @@ export default function App() {
         ...prev,
         [id]: { x: initialX, y: initialY }
       }));
-      
-      console.log('💾 새 노드 위치 즉시 저장:', id, `(${initialX.toFixed(1)}, ${initialY.toFixed(1)})`);
     }
     
     setGraph((g)=>({
@@ -680,9 +658,6 @@ export default function App() {
     // isLocked 체크박스가 선택된 경우에만 동심원에 고정
     if (addForm.isLocked) {
       setLockedIds((s)=> new Set([...Array.from(s), id]));
-      console.log('🔒 동심원 고정 노드 생성:', id, 'Group:', group);
-    } else {
-      console.log('🆓 자유 이동 노드 생성:', id, 'Group:', group, addForm.isCore ? '(Core Node)' : '', '- 위치 자동 고정됨');
     }
     
     setShowAdd(false);
@@ -694,10 +669,7 @@ export default function App() {
 
   /** 노드 드래그 종료 핸들러 */
   const handleNodeDragEnd = useCallback((node) => {
-    if (!node) {
-      console.log('⚠️ handleNodeDragEnd: node가 없음');
-      return;
-    }
+    if (!node) return;
     
     // 드래그 종료 시 노드를 현재 위치에 고정
     if (node.x != null && node.y != null) {
@@ -708,17 +680,11 @@ export default function App() {
     }
     
     // 동심원 고정 노드는 위치 저장 안함
-    if (lockedIds.has(node.id)) {
-      console.log('⚠️ 동심원 고정 노드는 위치 저장 안함:', node.id);
-      return;
-    }
+    if (lockedIds.has(node.id)) return;
     
     // 자유 이동 노드만 저장
     if (node.x != null && node.y != null) {
-      console.log('🎯 드래그 종료 감지:', node.id, `(x: ${node.x.toFixed(1)}, y: ${node.y.toFixed(1)})`);
       scheduleSavePositions(node);
-    } else {
-      console.log('⚠️ 노드 좌표 없음:', node.id, node);
     }
   }, [scheduleSavePositions, lockedIds]);
 

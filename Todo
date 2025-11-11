@@ -23,5 +23,4 @@
 7. 다크 모드 지원
 
 
-add node 할 때 to core / from core 기능과 backward / forward 기능이 겹침
-노드 추가시 기본 위치 및 재배치가 이상함.
+동심원 고정시 노드 생성 위치, 노드 배치 이상함
