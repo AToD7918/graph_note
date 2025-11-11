@@ -547,7 +547,7 @@ export default function App() {
   };
 
   /** 노드 추가 폼 */
-  const [addForm, setAddForm] = useState({ title: '', group: 2, linkType: 'forward', connectTo: 'Core', isCore: false, isLocked: false });
+  const [addForm, setAddForm] = useState({ title: '', group: 2, linkType: 'based-on', connectTo: 'Core', isCore: false, isLocked: false });
   /** 노드 추가 */
   const addNode = () => {
     const id = genId();
@@ -652,7 +652,7 @@ export default function App() {
     
     setGraph((g)=>({
       nodes: [...g.nodes, { id, group, title: addForm.title||'Untitled', summary: '' }],
-      links: [...g.links, { source: addForm.linkType==='forward'? (addForm.connectTo||'Core') : id, target: addForm.linkType==='forward'? id : (addForm.connectTo||'Core'), type: addForm.linkType }]
+      links: [...g.links, { source: addForm.linkType==='based-on'? id : (addForm.connectTo||'Core'), target: addForm.linkType==='based-on'? (addForm.connectTo||'Core') : id, type: addForm.linkType }]
     }));
     
     // isLocked 체크박스가 선택된 경우에만 동심원에 고정

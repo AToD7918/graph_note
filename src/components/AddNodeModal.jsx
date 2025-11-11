@@ -57,25 +57,6 @@ export function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="flex items-center gap-1.5 text-xs font-medium text-white/90">
-                <span className="text-teal-400 text-sm">🔗</span>
-                Link Direction
-              </label>
-              <select 
-                className="input-field w-full px-3 py-2 text-sm" 
-                value={form.linkType} 
-                onChange={(e)=>{
-                  const linkType = e.target.value;
-                  const group = form.isCore ? 1 : (linkType === 'forward' ? 2 : 3);
-                  setForm({...form, linkType, group});
-                }}
-              >
-                <option value="forward">→ Forward</option>
-                <option value="backward">← Backward</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-medium text-white/90">
                 <span className="text-teal-400 text-sm">🎯</span>
                 Connect To
               </label>
@@ -87,6 +68,25 @@ export function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
                 {graph.nodes.map(n=> (
                   <option key={n.id} value={n.id}>{n.id}</option>
                 ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-white/90">
+                <span className="text-teal-400 text-sm">🔗</span>
+                Link Direction
+              </label>
+              <select 
+                className="input-field w-full px-3 py-2 text-sm" 
+                value={form.linkType} 
+                onChange={(e)=>{
+                  const linkType = e.target.value;
+                  const group = form.isCore ? 1 : (linkType === 'based-on' ? 2 : 3);
+                  setForm({...form, linkType, group});
+                }}
+              >
+                <option value="based-on">← Based On</option>
+                <option value="cited-by">→ Cited By</option>
               </select>
             </div>
           </div>
@@ -101,7 +101,7 @@ export function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
                 checked={form.isCore || false}
                 onChange={(e)=>{
                   const isCore = e.target.checked;
-                  const group = isCore ? 1 : (form.linkType === 'forward' ? 2 : 3);
+                  const group = isCore ? 1 : (form.linkType === 'based-on' ? 2 : 3);
                   setForm({...form, isCore, group});
                 }}
                 className="w-4 h-4 rounded border-2 border-white/30 checked:bg-teal-500 checked:border-teal-500 transition-colors"

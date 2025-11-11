@@ -40,7 +40,7 @@ export function makeNodeCanvasObject(nodeStyles, lockedIds, selectedId = null) {
     
     // ? 모양과 색상
     const shape = style.shape || 'circle';  // 'circle' 또는 'square'
-    // 그룹별 기본 색상: Core=청록, Forward=초록, Backward=보라
+    // 그룹별 기본 색상: Core=청록, Based On=초록, Cited By=보라
     const fill = style.color || (
       node.group === 1 ? '#22d3ee' : 
       (node.group === 2 ? '#34d399' : '#a78bfa')
@@ -206,11 +206,11 @@ export function makeNodeCanvasObject(nodeStyles, lockedIds, selectedId = null) {
  * @returns {string} RGBA 색상 문자열
  * 
  * 색상 구분:
- * - Forward (후속 연구): 청록색 (teal)
- * - Backward (선행 연구): 보라색 (indigo)
+ * - Based On (선행 연구): 보라색 (indigo)
+ * - Cited By (후속 연구): 청록색 (teal)
  */
 export const defaultLinkColor = (l) => 
-  l.type === 'forward' ? 'rgba(94,234,212,0.9)' : 'rgba(165,180,252,0.9)';
+  l.type === 'based-on' ? 'rgba(165,180,252,0.9)' : 'rgba(94,234,212,0.9)';
 
 /**
  * 클릭 판정용 영역을 그리는 함수

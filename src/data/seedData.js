@@ -75,13 +75,13 @@ export function seedCore5() {
     // 🔗 링크(Link) 배열: 노드 간의 연결(화살표)
     links: [
       { 
-        source: 'Core',
-        target: 'F1',
-        type: 'forward'
+        source: 'F1',
+        target: 'Core',
+        type: 'cited-by'
       },
-      { source: 'Core', target: 'F2', type: 'forward' },
-      { source: 'B1', target: 'Core', type: 'backward' },
-      { source: 'B2', target: 'Core', type: 'backward' },
+      { source: 'F2', target: 'Core', type: 'cited-by' },
+      { source: 'Core', target: 'B1', type: 'based-on' },
+      { source: 'Core', target: 'B2', type: 'based-on' },
     ],
     
     // 🎨 노드 스타일: 각 노드의 시각적 설정 (비어있으면 기본값 사용)

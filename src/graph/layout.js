@@ -5,8 +5,8 @@ import { toId } from '../utils/helpers';
  * 
  * ? 이 함수의 역할:
  * - Core 노드를 중심으로 노드들을 동심원 형태로 배치
- * - 전방 참조(Forward): Core를 인용한 후속 연구들 → 바깥쪽 원
- * - 후방 참조(Backward): Core가 인용한 선행 연구들 → 안쪽 원
+ * - Based On (선행 연구): Core가 참조하는 연구들 → 안쪽 원
+ * - Cited By (후속 연구): Core를 참조하는 연구들 → 바깥쪽 원
  * 
  * @param {Object} baseData - { nodes: [], links: [] }
  * @param {Set<string>} lockedIds - 동심원에 고정할 노드 ID 집합 (선택적)
@@ -69,32 +69,32 @@ export function computeRadialAnchors(baseData, lockedIds = null) {
   // ? 깊이 계산 (BFS - Breadth First Search)
   // depth: 각 노드의 Core로부터의 거리
   //   - 0: Core 자신
-  //   - 양수: Core를 참조하는 후속 연구 (forward)
-  //   - 음수: Core가 참조한 선행 연구 (backward)
+  //   - 음수: Core가 참조하는 선행 연구 (based-on) → 안쪽 원
+  //   - 양수: Core를 참조하는 후속 연구 (cited-by) → 바깥쪽 원
   const depth = new Map([[core.id, 0]]);  // Core는 깊이 0
   
-  // ?? Forward 방향 탐색 (Core → 후속 연구들)
-  const q = [core.id];  // 큐(Queue) 초기화
+  // ?? Based On 방향 탐색 (선행 연구들 → Core)
+  const q = [core.id];
   while (q.length) {
-    const v = q.shift();  // 큐에서 노드 하나 꺼내기
-    // v에서 나가는 모든 노드 확인
-    for (const nxt of outFromCore.get(v)) {
-      if (!depth.has(nxt)) {  // 아직 방문 안 한 노드면
-        depth.set(nxt, (depth.get(v) || 0) + 1);  // 깊이 = 부모 깊이 + 1
-        q.push(nxt);  // 큐에 추가 (나중에 방문)
-      }
-    }
-  }
-  
-  // ?? Backward 방향 탐색 (선행 연구들 → Core)
-  const q2 = [core.id];
-  while (q2.length) {
-    const v = q2.shift();
+    const v = q.shift();
     // v로 들어오는 모든 노드 확인
     for (const prev of inToCore.get(v)) {
       if (!depth.has(prev)) {  // 아직 방문 안 한 노드면
         depth.set(prev, (depth.get(v) || 0) - 1);  // 깊이 = 부모 깊이 - 1 (음수)
-        q2.push(prev);
+        q.push(prev);
+      }
+    }
+  }
+  
+  // ?? Cited By 방향 탐색 (Core → 후속 연구들)
+  const q2 = [core.id];  // 큐(Queue) 초기화
+  while (q2.length) {
+    const v = q2.shift();  // 큐에서 노드 하나 꺼내기
+    // v에서 나가는 모든 노드 확인
+    for (const nxt of outFromCore.get(v)) {
+      if (!depth.has(nxt)) {  // 아직 방문 안 한 노드면
+        depth.set(nxt, (depth.get(v) || 0) + 1);  // 깊이 = 부모 깊이 + 1
+        q2.push(nxt);  // 큐에 추가 (나중에 방문)
       }
     }
   }
@@ -125,7 +125,7 @@ export function computeRadialAnchors(baseData, lockedIds = null) {
     arr.forEach((id, i) => {
       // 각도 계산: 360도를 노드 개수로 나눔
       const angle = (2 * Math.PI * i) / count + 
-                    (r >= 0 ? 0 : Math.PI / count);  // backward는 약간 회전
+                    (r < 0 ? Math.PI / count : 0);  // based-on(음수)은 약간 회전
       
       // 극좌표 → 직교좌표 변환
       anchors.set(id, { 
