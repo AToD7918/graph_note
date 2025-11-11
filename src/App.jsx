@@ -133,6 +133,12 @@ function GraphView({
   const onNodeDrag = useCallback((node) => {
     if (!fgRef.current || !containerRef.current) return;
     
+    // 드래그 시작 시 노드의 고정 해제 (물리 시뮬레이션 없이 드래그만 가능하도록)
+    if (node && node.fx != null && node.fy != null) {
+      node.fx = null;
+      node.fy = null;
+    }
+    
     // 드래그 시작 로그 (노드당 한 번만)
     if (node && !dragStartLoggedRef.current.has(node.id)) {
       console.log('🟢 드래그 시작:', node.id);
@@ -184,8 +190,11 @@ function GraphView({
       linkDirectionalArrowRelPos={0.5}
       linkCurvature={linkCurvature}
       cooldownTicks={0}
-      d3AlphaDecay={0.02}
-      d3VelocityDecay={0.3}
+      d3AlphaDecay={1}
+      d3VelocityDecay={1}
+      enableNodeDrag={true}
+      enableZoomInteraction={true}
+      enablePanInteraction={true}
       onNodeHover={onNodeHover}
       onNodeClick={onNodeClick}
       onNodeRightClick={onNodeRightClick}
@@ -380,6 +389,9 @@ export default function App() {
     const nodes = graph.nodes.map((n) => ({ ...n }));
     const links = graph.links.map((l) => ({ source: toId(l.source), target: toId(l.target), type: l.type }));
     
+    // 노드 ID -> 노드 객체 맵 생성 (빠른 조회)
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    
     let lockedCount = 0, savedCount = 0, newCount = 0;
     
     for (const n of nodes) {
@@ -388,18 +400,147 @@ export default function App() {
         const a = radialAnchors.get(n.id); 
         n.fx = a?.x ?? 0; 
         n.fy = a?.y ?? 0;
+        // 속도 완전히 제거
+        n.vx = 0;
+        n.vy = 0;
         lockedCount++;
       } else if (savedNodePositions[n.id]) {
-        // 저장된 위치가 있는 자유 노드: 저장된 위치로 초기화
+        // 저장된 위치가 있는 자유 노드: 저장된 위치에 완전히 고정
         n.x = savedNodePositions[n.id].x;
         n.y = savedNodePositions[n.id].y;
-        n.fx = undefined; 
-        n.fy = undefined;
+        // fx, fy로 고정하여 물리 시뮬레이션의 영향 완전 차단
+        n.fx = savedNodePositions[n.id].x;
+        n.fy = savedNodePositions[n.id].y;
+        // 속도 완전히 제거
+        n.vx = 0;
+        n.vy = 0;
         savedCount++;
       } else { 
-        // 새 노드: 자유 이동
-        n.fx = undefined; 
-        n.fy = undefined;
+        // 새 노드: 연결된 부모 노드 근처에 초기 배치
+        // 초기 위치 계산 후 fx, fy로 고정
+        
+        // 이 노드와 연결된 부모 노드 찾기
+        const parentLink = links.find(l => 
+          toId(l.target) === n.id || toId(l.source) === n.id
+        );
+        
+        if (parentLink) {
+          // 부모 노드 ID 확인 (target이 현재 노드면 source가 부모, 반대도 마찬가지)
+          const parentId = toId(parentLink.target) === n.id 
+            ? toId(parentLink.source) 
+            : toId(parentLink.target);
+          
+          const parentNode = nodeMap.get(parentId);
+          
+          if (parentNode) {
+            // 부모 노드의 위치 확인
+            let parentX, parentY;
+            
+            if (lockedIds.has(parentId)) {
+              // 부모가 고정 노드면 앵커 위치 사용
+              const anchor = radialAnchors.get(parentId);
+              parentX = anchor?.x ?? 0;
+              parentY = anchor?.y ?? 0;
+            } else if (savedNodePositions[parentId]) {
+              // 부모가 저장된 노드면 저장된 위치 사용
+              parentX = savedNodePositions[parentId].x;
+              parentY = savedNodePositions[parentId].y;
+            } else if (parentNode.x != null && parentNode.y != null) {
+              // 부모의 현재 위치 사용
+              parentX = parentNode.x;
+              parentY = parentNode.y;
+            } else {
+              // 부모 위치도 없으면 중앙
+              parentX = 0;
+              parentY = 0;
+            }
+            
+            // 부모 근처에 랜덤 오프셋으로 배치 (20-30px 거리, 충돌 방지)
+            const minDistance = 20;
+            const maxDistance = 30;
+            const minNodeGap = 25; // 노드 간 최소 거리
+            const maxAttempts = 12; // 최대 시도 횟수 (30도씩 회전)
+            
+            let finalX, finalY;
+            let foundValidPosition = false;
+            
+            // 여러 각도를 시도하여 겹치지 않는 위치 찾기
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+              const distance = minDistance + Math.random() * (maxDistance - minDistance);
+              const baseAngle = Math.random() * 2 * Math.PI;
+              const angle = baseAngle + (attempt * Math.PI / 6); // 30도씩 회전
+              
+              const testX = parentX + distance * Math.cos(angle);
+              const testY = parentY + distance * Math.sin(angle);
+              
+              // 모든 기존 노드와의 거리 확인
+              let hasCollision = false;
+              for (const existingNode of nodes) {
+                if (existingNode === n) continue; // 자기 자신 제외
+                
+                let existingX, existingY;
+                
+                if (lockedIds.has(existingNode.id)) {
+                  const anchor = radialAnchors.get(existingNode.id);
+                  existingX = anchor?.x ?? 0;
+                  existingY = anchor?.y ?? 0;
+                } else if (savedNodePositions[existingNode.id]) {
+                  existingX = savedNodePositions[existingNode.id].x;
+                  existingY = savedNodePositions[existingNode.id].y;
+                } else if (existingNode.x != null && existingNode.y != null) {
+                  existingX = existingNode.x;
+                  existingY = existingNode.y;
+                } else {
+                  continue; // 위치 없는 노드는 스킵
+                }
+                
+                const dx = testX - existingX;
+                const dy = testY - existingY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < minNodeGap) {
+                  hasCollision = true;
+                  break;
+                }
+              }
+              
+              if (!hasCollision) {
+                finalX = testX;
+                finalY = testY;
+                foundValidPosition = true;
+                console.log(`✅ 새 노드 ${n.id} → 부모 ${parentId} 근처 배치 (시도 ${attempt + 1}회, ${finalX.toFixed(1)}, ${finalY.toFixed(1)})`);
+                break;
+              }
+            }
+            
+            // 충돌 없는 위치를 찾지 못하면 거리를 늘려서 배치
+            if (!foundValidPosition) {
+              const fallbackDistance = maxDistance + 10;
+              const angle = Math.random() * 2 * Math.PI;
+              finalX = parentX + fallbackDistance * Math.cos(angle);
+              finalY = parentY + fallbackDistance * Math.sin(angle);
+              console.log(`⚠️ 새 노드 ${n.id} → 충돌 회피 실패, 거리 증가 (${finalX.toFixed(1)}, ${finalY.toFixed(1)})`);
+            }
+            
+            n.x = finalX;
+            n.y = finalY;
+            // 새 노드도 fx, fy로 완전히 고정하여 물리 시뮬레이션 영향 차단
+            n.fx = finalX;
+            n.fy = finalY;
+            // 속도 완전히 제거
+            n.vx = 0;
+            n.vy = 0;
+          } else {
+            // 부모가 없는 새 노드는 중앙에 배치하고 고정
+            if (n.x == null) n.x = 0;
+            if (n.y == null) n.y = 0;
+            n.fx = n.x;
+            n.fy = n.y;
+            n.vx = 0;
+            n.vy = 0;
+          }
+        }
+        
         newCount++;
       }
     }
@@ -431,26 +572,120 @@ export default function App() {
     const id = genId();
     const group = Number(addForm.group) || 2;
     
+    // 새 노드의 초기 위치 계산 (부모 노드 근처)
+    let initialX = 0, initialY = 0;
+    
+    // Group 2 이상 (자유 이동 노드)인 경우에만 위치 계산 및 저장
+    if (group > 1) {
+      // 연결될 노드 ID
+      const connectToId = addForm.connectTo || 'Core';
+      
+      // 부모 노드의 위치 확인
+      let parentX = 0, parentY = 0;
+      
+      if (lockedIds.has(connectToId)) {
+        // 부모가 동심원 고정 노드면 앵커 위치 사용
+        const anchor = radialAnchors.get(connectToId);
+        parentX = anchor?.x ?? 0;
+        parentY = anchor?.y ?? 0;
+      } else if (savedNodePositions[connectToId]) {
+        // 부모가 저장된 노드면 저장된 위치 사용
+        parentX = savedNodePositions[connectToId].x;
+        parentY = savedNodePositions[connectToId].y;
+      } else {
+        // 부모 노드를 graph에서 찾기
+        const parentNode = graph.nodes.find(n => n.id === connectToId);
+        if (parentNode && parentNode.x != null && parentNode.y != null) {
+          parentX = parentNode.x;
+          parentY = parentNode.y;
+        }
+      }
+      
+      // 부모 근처에 랜덤 배치 (20-30px 거리, 충돌 방지)
+      const minDistance = 20;
+      const maxDistance = 30;
+      const minNodeGap = 25;
+      const maxAttempts = 12;
+      
+      let foundValidPosition = false;
+      
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const distance = minDistance + Math.random() * (maxDistance - minDistance);
+        const baseAngle = Math.random() * 2 * Math.PI;
+        const angle = baseAngle + (attempt * Math.PI / 6);
+        
+        const testX = parentX + distance * Math.cos(angle);
+        const testY = parentY + distance * Math.sin(angle);
+        
+        // 기존 노드들과 충돌 검사
+        let hasCollision = false;
+        for (const nodeId in savedNodePositions) {
+          const pos = savedNodePositions[nodeId];
+          const dx = testX - pos.x;
+          const dy = testY - pos.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < minNodeGap) {
+            hasCollision = true;
+            break;
+          }
+        }
+        
+        // 동심원 노드들과도 충돌 검사
+        if (!hasCollision) {
+          for (const [, anchor] of radialAnchors.entries()) {
+            const dx = testX - anchor.x;
+            const dy = testY - anchor.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist < minNodeGap) {
+              hasCollision = true;
+              break;
+            }
+          }
+        }
+        
+        if (!hasCollision) {
+          initialX = testX;
+          initialY = testY;
+          foundValidPosition = true;
+          console.log(`✅ 새 노드 ${id} 위치 계산 완료 (시도 ${attempt + 1}회, ${initialX.toFixed(1)}, ${initialY.toFixed(1)})`);
+          break;
+        }
+      }
+      
+      // 충돌 회피 실패 시 거리 증가
+      if (!foundValidPosition) {
+        const fallbackDistance = maxDistance + 10;
+        const angle = Math.random() * 2 * Math.PI;
+        initialX = parentX + fallbackDistance * Math.cos(angle);
+        initialY = parentY + fallbackDistance * Math.sin(angle);
+        console.log(`⚠️ 새 노드 ${id} 충돌 회피 실패, 거리 증가 (${initialX.toFixed(1)}, ${initialY.toFixed(1)})`);
+      }
+      
+      // 즉시 savedNodePositions에 저장하여 다음 렌더링에서 고정되도록 함
+      setSavedNodePositions(prev => ({
+        ...prev,
+        [id]: { x: initialX, y: initialY }
+      }));
+      
+      console.log('💾 새 노드 위치 즉시 저장:', id, `(${initialX.toFixed(1)}, ${initialY.toFixed(1)})`);
+    }
+    
     setGraph((g)=>({
       nodes: [...g.nodes, { id, group, title: addForm.title||'Untitled', summary: '' }],
       links: [...g.links, { source: addForm.linkType==='forward'? (addForm.connectTo||'Core') : id, target: addForm.linkType==='forward'? id : (addForm.connectTo||'Core'), type: addForm.linkType }]
     }));
     
     // Group 0 또는 1만 동심원에 고정 (Core 등)
-    // Group 2 이상은 자유 이동
     if (group <= 1) {
       setLockedIds((s)=> new Set([...Array.from(s), id]));
       console.log('🔒 동심원 고정 노드 생성:', id, 'Group:', group);
     } else {
-      console.log('🆓 자유 이동 노드 생성:', id, 'Group:', group);
+      console.log('🆓 자유 이동 노드 생성:', id, 'Group:', group, '- 위치 자동 고정됨');
     }
     
     setShowAdd(false);
-    
-    // 📝 참고: 새 노드의 초기 위치는 사용자가 직접 드래그할 때 저장됩니다.
-    // force-graph의 물리 시뮬레이션 좌표는 내부 상태이므로 직접 접근할 수 없습니다.
-    // 따라서 handleNodeDragEnd에서만 위치를 저장합니다.
-    console.log('🆕 새 노드 생성:', id, '- 드래그하여 위치를 저장하세요');
   };
 
   /** 스타일/락 헬퍼 (하위 컴포넌트에 주입) */
@@ -464,10 +699,17 @@ export default function App() {
       return;
     }
     
-    // 동심원에 고정된 노드(fx, fy가 설정된 노드)는 저장하지 않음
-    // fx, fy가 있으면 force-graph가 해당 위치에 고정시킴
-    if (node.fx != null || node.fy != null) {
-      console.log('⚠️ 동심원 고정 노드는 위치 저장 안함:', node.id, `(fx: ${node.fx}, fy: ${node.fy})`);
+    // 드래그 종료 시 노드를 현재 위치에 고정
+    if (node.x != null && node.y != null) {
+      node.fx = node.x;
+      node.fy = node.y;
+      node.vx = 0;
+      node.vy = 0;
+    }
+    
+    // 동심원 고정 노드는 위치 저장 안함
+    if (lockedIds.has(node.id)) {
+      console.log('⚠️ 동심원 고정 노드는 위치 저장 안함:', node.id);
       return;
     }
     
@@ -478,7 +720,7 @@ export default function App() {
     } else {
       console.log('⚠️ 노드 좌표 없음:', node.id, node);
     }
-  }, [scheduleSavePositions]);
+  }, [scheduleSavePositions, lockedIds]);
 
   /** 컨텍스트 메뉴 global 핸들러: ESC/바깥 클릭 닫기 */
   useEffect(() => {
