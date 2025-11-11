@@ -439,17 +439,10 @@ export default function App() {
     
     setShowAdd(false);
     
-    // 새 노드 위치 저장: 물리 시뮬레이션 안정화 후 (2초)
-    setTimeout(() => {
-      if (fgRef.current) {
-        const graphData = fgRef.current.graphData();
-        const newNode = graphData.nodes.find(n => n.id === id);
-        if (newNode && newNode.x != null && newNode.y != null) {
-          saveNodePositions(newNode);
-          console.log('🆕 새 노드 위치 자동 저장:', id);
-        }
-      }
-    }, 2000);
+    // 📝 참고: 새 노드의 초기 위치는 사용자가 직접 드래그할 때 저장됩니다.
+    // force-graph의 물리 시뮬레이션 좌표는 내부 상태이므로 직접 접근할 수 없습니다.
+    // 따라서 handleNodeDragEnd에서만 위치를 저장합니다.
+    console.log('🆕 새 노드 생성:', id, '- 드래그하여 위치를 저장하세요');
   };
 
   /** 스타일/락 헬퍼 (하위 컴포넌트에 주입) */
