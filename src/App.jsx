@@ -566,7 +566,7 @@ export default function App() {
   };
 
   /** 노드 추가 폼 */
-  const [addForm, setAddForm] = useState({ title: '', group: 2, linkType: 'forward', connectTo: 'Core' });
+  const [addForm, setAddForm] = useState({ title: '', group: 2, linkType: 'forward', connectTo: 'Core', isCore: false, isLocked: false });
   /** 노드 추가 */
   const addNode = () => {
     const id = genId();
@@ -575,8 +575,8 @@ export default function App() {
     // 새 노드의 초기 위치 계산 (부모 노드 근처)
     let initialX = 0, initialY = 0;
     
-    // Group 2 이상 (자유 이동 노드)인 경우에만 위치 계산 및 저장
-    if (group > 1) {
+    // 동심원 고정이 아닌 경우에만 위치 계산 및 저장
+    if (!addForm.isLocked) {
       // 연결될 노드 ID
       const connectToId = addForm.connectTo || 'Core';
       
@@ -677,12 +677,12 @@ export default function App() {
       links: [...g.links, { source: addForm.linkType==='forward'? (addForm.connectTo||'Core') : id, target: addForm.linkType==='forward'? id : (addForm.connectTo||'Core'), type: addForm.linkType }]
     }));
     
-    // Group 0 또는 1만 동심원에 고정 (Core 등)
-    if (group <= 1) {
+    // isLocked 체크박스가 선택된 경우에만 동심원에 고정
+    if (addForm.isLocked) {
       setLockedIds((s)=> new Set([...Array.from(s), id]));
       console.log('🔒 동심원 고정 노드 생성:', id, 'Group:', group);
     } else {
-      console.log('🆓 자유 이동 노드 생성:', id, 'Group:', group, '- 위치 자동 고정됨');
+      console.log('🆓 자유 이동 노드 생성:', id, 'Group:', group, addForm.isCore ? '(Core Node)' : '', '- 위치 자동 고정됨');
     }
     
     setShowAdd(false);

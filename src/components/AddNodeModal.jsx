@@ -33,26 +33,20 @@ export function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="opacity-70">Group</span>
-            <select 
-              className="input-field" 
-              value={form.group} 
-              onChange={(e)=>setForm({...form, group:e.target.value})}
-            >
-              <option value={1}>Core</option>
-              <option value={2}>Forward</option>
-              <option value={3}>Backward</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">Link Type</span>
+            <span className="opacity-70">Link Type (연결 방향)</span>
             <select 
               className="input-field" 
               value={form.linkType} 
-              onChange={(e)=>setForm({...form, linkType:e.target.value})}
+              onChange={(e)=>{
+                const linkType = e.target.value;
+                // linkType에 따라 기본 group 설정: forward -> 2, backward -> 3
+                // isCore가 true면 group은 1로 덮어씌워짐
+                const group = form.isCore ? 1 : (linkType === 'forward' ? 2 : 3);
+                setForm({...form, linkType, group});
+              }}
             >
-              <option value="forward">Core/기준 → 새 노드</option>
-              <option value="backward">새 노드 → Core/기준</option>
+              <option value="forward">기준 → 새 노드 (Forward)</option>
+              <option value="backward">새 노드 → 기준 (Backward)</option>
             </select>
           </label>
           <label className="flex flex-col gap-1">
@@ -66,6 +60,31 @@ export function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
                 <option key={n.id} value={n.id}>{n.id}</option>
               ))}
             </select>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={form.isCore || false}
+              onChange={(e)=>{
+                const isCore = e.target.checked;
+                // Core 노드면 group을 1로, 아니면 linkType에 따라 2 or 3
+                const group = isCore ? 1 : (form.linkType === 'forward' ? 2 : 3);
+                setForm({...form, isCore, group});
+              }}
+              className="w-4 h-4"
+            />
+            <span className="opacity-70">Core Node (내부 흰 원) - Group 1</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={form.isLocked || false}
+              onChange={(e)=>{
+                setForm({...form, isLocked: e.target.checked});
+              }}
+              className="w-4 h-4"
+            />
+            <span className="opacity-70">동심원 고정 (흰색 테두리)</span>
           </label>
         </div>
         <div className="mt-4 flex items-center justify-end gap-2">

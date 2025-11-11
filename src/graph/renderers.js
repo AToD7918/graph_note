@@ -89,19 +89,43 @@ export function makeNodeCanvasObject(nodeStyles, lockedIds, selectedId = null) {
       ctx.beginPath();
       ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
       ctx.fill();
+      
+      // 고정된 노드는 흰색 테두리 (같은 경로에 stroke)
+      if (lockedIds.has(node.id)) {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#fff';
+        ctx.stroke();
+      }
     } else {
       const s = r * 2.0;
       ctx.beginPath();
       ctx.rect(node.x - s / 2, node.y - s / 2, s, s);
       ctx.fill();
+      
+      // 고정된 노드는 흰색 테두리 (같은 경로에 stroke)
+      if (lockedIds.has(node.id)) {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#fff';
+        ctx.stroke();
+      }
     }
     
-    // ? 고정된 노드는 흰색 테두리 표시
-    if (lockedIds.has(node.id)) {
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = '#fff';
-      ctx.stroke();
+    // ? Core 노드(Group 1)는 내부에 흰 원 표시
+    if (node.group === 1) {
+      ctx.fillStyle = '#ffffff';
+      const innerR = r * 0.4; // 내부 원 크기 (외부 원의 40%)
+      if (shape === 'circle') {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, innerR, 0, 2 * Math.PI);
+        ctx.fill();
+      } else {
+        const innerS = innerR * 2.0;
+        ctx.beginPath();
+        ctx.rect(node.x - innerS / 2, node.y - innerS / 2, innerS, innerS);
+        ctx.fill();
+      }
     }
+    
     ctx.restore();
     
     // ? 선택된 노드는 도넛 링으로 표시
