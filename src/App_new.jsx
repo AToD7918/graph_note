@@ -3,12 +3,6 @@ import { toId, genId } from './utils/helpers';
 import { initializeSeedNotes } from './adapters/noteStorage';
 import { computeRadialAnchors } from './graph/layout';
 import { ensureTagsField } from './utils/tagHelpers';
-import { 
-  SpatialHashGrid, 
-  computeNewNodePosition, 
-  buildNodePositionCache,
-  hasFixedPosition 
-} from './utils/nodePositionOptimizer';
 import { useGraphStore } from './store/graphStore';
 import { useUIStore } from './store/uiStore';
 import { GraphContainer } from './components/GraphContainer';
@@ -146,12 +140,6 @@ export default function App() {
     [graph, lockedIds]
   );
 
-  // === 노드 위치 캐시 (성능 최적화) ===
-  const nodePositionCache = useMemo(() => 
-    buildNodePositionCache(graph.nodes, lockedIds, radialAnchors, savedNodePositions),
-    [graph.nodes, lockedIds, radialAnchors, savedNodePositions]
-  );
-
   const derivedData = useMemo(() => {
     const nodes = graph.nodes.map((n) => ({ ...n }));
     const links = graph.links.map((l) => ({ 
@@ -162,39 +150,20 @@ export default function App() {
     
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
     
-    // 공간 해시 그리드 생성 (충돌 검사 최적화)
-    const spatialGrid = new SpatialHashGrid(50);
-    
-    // 1단계: 이미 위치가 확정된 노드들을 그리드에 추가
-    for (const n of nodes) {
-      if (hasFixedPosition(n, lockedIds, savedNodePositions)) {
-        const cachedPos = nodePositionCache.get(n.id);
-        if (cachedPos) {
-          spatialGrid.insert(cachedPos.x, cachedPos.y, n.id);
-        }
-      }
-    }
-    
-    // 2단계: 각 노드에 위치 적용
     for (const n of nodes) {
       if (lockedIds.has(n.id)) { 
-        // 동심원 고정 노드
         const a = radialAnchors.get(n.id); 
         n.fx = a?.x ?? 0; 
         n.fy = a?.y ?? 0;
         n.vx = 0;
         n.vy = 0;
       } else if (savedNodePositions[n.id]) {
-        // 저장된 위치가 있는 노드
         n.x = savedNodePositions[n.id].x;
         n.y = savedNodePositions[n.id].y;
         n.fx = savedNodePositions[n.id].x;
         n.fy = savedNodePositions[n.id].y;
         n.vx = 0;
         n.vy = 0;
-      } else if (n.x != null && n.y != null && n.fx != null && n.fy != null) {
-        // 이미 위치가 확정된 노드 (재계산 스킵)
-        continue;
       } else { 
         const parentLink = links.find(l => 
           toId(l.target) === n.id || toId(l.source) === n.id
@@ -208,19 +177,83 @@ export default function App() {
           const parentNode = nodeMap.get(parentId);
           
           if (parentNode) {
-            // 최적화된 위치 계산 함수 사용 (공간 해시 그리드)
-            const position = computeNewNodePosition(
-              n,
-              links,
-              nodeMap,
-              lockedIds,
-              radialAnchors,
-              savedNodePositions,
-              spatialGrid
-            );
+            let parentX, parentY;
             
-            const finalX = position.x;
-            const finalY = position.y;
+            if (lockedIds.has(parentId)) {
+              const anchor = radialAnchors.get(parentId);
+              parentX = anchor?.x ?? 0;
+              parentY = anchor?.y ?? 0;
+            } else if (savedNodePositions[parentId]) {
+              parentX = savedNodePositions[parentId].x;
+              parentY = savedNodePositions[parentId].y;
+            } else if (parentNode.x != null && parentNode.y != null) {
+              parentX = parentNode.x;
+              parentY = parentNode.y;
+            } else {
+              parentX = 0;
+              parentY = 0;
+            }
+            
+            const minDistance = 20;
+            const maxDistance = 30;
+            const minNodeGap = 25;
+            const maxAttempts = 12;
+            
+            let finalX, finalY;
+            let foundValidPosition = false;
+            
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+              const distance = minDistance + Math.random() * (maxDistance - minDistance);
+              const baseAngle = Math.random() * 2 * Math.PI;
+              const angle = baseAngle + (attempt * Math.PI / 6);
+              
+              const testX = parentX + distance * Math.cos(angle);
+              const testY = parentY + distance * Math.sin(angle);
+              
+              let hasCollision = false;
+              for (const existingNode of nodes) {
+                if (existingNode === n) continue;
+                
+                let existingX, existingY;
+                
+                if (lockedIds.has(existingNode.id)) {
+                  const anchor = radialAnchors.get(existingNode.id);
+                  existingX = anchor?.x ?? 0;
+                  existingY = anchor?.y ?? 0;
+                } else if (savedNodePositions[existingNode.id]) {
+                  existingX = savedNodePositions[existingNode.id].x;
+                  existingY = savedNodePositions[existingNode.id].y;
+                } else if (existingNode.x != null && existingNode.y != null) {
+                  existingX = existingNode.x;
+                  existingY = existingNode.y;
+                } else {
+                  continue;
+                }
+                
+                const dx = testX - existingX;
+                const dy = testY - existingY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < minNodeGap) {
+                  hasCollision = true;
+                  break;
+                }
+              }
+              
+              if (!hasCollision) {
+                finalX = testX;
+                finalY = testY;
+                foundValidPosition = true;
+                break;
+              }
+            }
+            
+            if (!foundValidPosition) {
+              const fallbackDistance = maxDistance + 10;
+              const angle = Math.random() * 2 * Math.PI;
+              finalX = parentX + fallbackDistance * Math.cos(angle);
+              finalY = parentY + fallbackDistance * Math.sin(angle);
+            }
             
             n.x = finalX;
             n.y = finalY;
@@ -241,7 +274,7 @@ export default function App() {
     }
     
     return { nodes, links };
-  }, [graph, lockedIds, radialAnchors, savedNodePositions, nodePositionCache]);
+  }, [graph, lockedIds, radialAnchors, savedNodePositions]);
 
   // === 선택된 노트 ===
   const selectedNote = useMemo(() => 
@@ -476,10 +509,7 @@ export default function App() {
           nodeStyles={nodeStyles}
           lockedIds={lockedIds}
           selectedId={selectedId}
-          onShowContextMenu={(x, y, nodeId) => {
-            useUIStore.getState().showContextMenu(x, y, nodeId);
-          }}
-          onHideContextMenu={hideContextMenu}
+          setContextMenu={hideContextMenu}
           onNodeClickWithPosition={handleNodeClick}
           closePreviewMenu={hidePreviewMenu}
           onZoomChange={setZoomLevel}
