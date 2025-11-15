@@ -95,7 +95,7 @@ export class SpatialHashGrid {
  * @param {Array} links - 모든 링크
  * @param {Map} nodeMap - 노드 ID -> 노드 객체 맵
  * @param {Set} lockedIds - 고정된 노드 ID 집합
- * @param {Map} radialAnchors - 동심원 앵커 위치
+ * @param {Map} hierarchicalAnchors - 계층적 자동 배치 앵커 위치
  * @param {Object} savedNodePositions - 저장된 노드 위치
  * @param {SpatialHashGrid} spatialGrid - 공간 해시 그리드
  * @returns {{ x: number, y: number }} 계산된 위치
@@ -105,7 +105,7 @@ export function computeNewNodePosition(
   links,
   nodeMap,
   lockedIds,
-  radialAnchors,
+  hierarchicalAnchors,
   savedNodePositions,
   spatialGrid
 ) {
@@ -132,7 +132,7 @@ export function computeNewNodePosition(
   let parentX = 0, parentY = 0;
   
   if (lockedIds.has(parentId)) {
-    const anchor = radialAnchors.get(parentId);
+    const anchor = hierarchicalAnchors.get(parentId);
     parentX = anchor?.x ?? 0;
     parentY = anchor?.y ?? 0;
   } else if (savedNodePositions[parentId]) {
@@ -184,12 +184,12 @@ export function computeNewNodePosition(
  * 노드 위치 캐시 생성
  * 이미 위치가 확정된 노드들의 위치를 미리 계산하여 캐싱
  */
-export function buildNodePositionCache(nodes, lockedIds, radialAnchors, savedNodePositions) {
+export function buildNodePositionCache(nodes, lockedIds, hierarchicalAnchors, savedNodePositions) {
   const cache = new Map();
   
   for (const node of nodes) {
     if (lockedIds.has(node.id)) {
-      const anchor = radialAnchors.get(node.id);
+      const anchor = hierarchicalAnchors.get(node.id);
       cache.set(node.id, {
         x: anchor?.x ?? 0,
         y: anchor?.y ?? 0,

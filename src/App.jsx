@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react';
 import { toId, genId } from './utils/helpers';
 import { initializeSeedNotes } from './adapters/noteStorage';
-import { computeRadialAnchors } from './graph/layout';
+import { computeHierarchicalLayout } from './graph/layout';
 import { ensureTagsField } from './utils/tagHelpers';
 import { 
   SpatialHashGrid, 
@@ -140,16 +140,16 @@ export default function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // === 동심원 앵커 & 고정 좌표 적용 + 저장된 위치 복원 ===
-  const radialAnchors = useMemo(() => 
-    computeRadialAnchors(graph, lockedIds), 
+  // === 계층적 자동 배치 앵커 & 고정 좌표 적용 + 저장된 위치 복원 ===
+  const hierarchicalAnchors = useMemo(() => 
+    computeHierarchicalLayout(graph, lockedIds), 
     [graph, lockedIds]
   );
 
   // === 노드 위치 캐시 (성능 최적화) ===
   const nodePositionCache = useMemo(() => 
-    buildNodePositionCache(graph.nodes, lockedIds, radialAnchors, savedNodePositions),
-    [graph.nodes, lockedIds, radialAnchors, savedNodePositions]
+    buildNodePositionCache(graph.nodes, lockedIds, hierarchicalAnchors, savedNodePositions),
+    [graph.nodes, lockedIds, hierarchicalAnchors, savedNodePositions]
   );
 
   const derivedData = useMemo(() => {
@@ -178,8 +178,8 @@ export default function App() {
     // 2단계: 각 노드에 위치 적용
     for (const n of nodes) {
       if (lockedIds.has(n.id)) { 
-        // 동심원 고정 노드
-        const a = radialAnchors.get(n.id); 
+        // 계층적 자동 배치 고정 노드
+        const a = hierarchicalAnchors.get(n.id); 
         n.fx = a?.x ?? 0; 
         n.fy = a?.y ?? 0;
         n.vx = 0;
@@ -214,7 +214,7 @@ export default function App() {
               links,
               nodeMap,
               lockedIds,
-              radialAnchors,
+              hierarchicalAnchors,
               savedNodePositions,
               spatialGrid
             );
@@ -241,7 +241,7 @@ export default function App() {
     }
     
     return { nodes, links };
-  }, [graph, lockedIds, radialAnchors, savedNodePositions, nodePositionCache]);
+  }, [graph, lockedIds, hierarchicalAnchors, savedNodePositions, nodePositionCache]);
 
   // === 선택된 노트 ===
   const selectedNote = useMemo(() => 
@@ -262,7 +262,7 @@ export default function App() {
       let parentX = 0, parentY = 0;
       
       if (lockedIds.has(connectToId)) {
-        const anchor = radialAnchors.get(connectToId);
+        const anchor = hierarchicalAnchors.get(connectToId);
         parentX = anchor?.x ?? 0;
         parentY = anchor?.y ?? 0;
       } else if (savedNodePositions[connectToId]) {
@@ -305,7 +305,7 @@ export default function App() {
         }
         
         if (!hasCollision) {
-          for (const [, anchor] of radialAnchors.entries()) {
+          for (const [, anchor] of hierarchicalAnchors.entries()) {
             const dx = testX - anchor.x;
             const dy = testY - anchor.y;
             const dist = Math.sqrt(dx * dx + dy * dy);

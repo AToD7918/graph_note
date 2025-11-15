@@ -45,7 +45,7 @@ export function SettingsModal({ open, onClose, storageMode, setStorageMode, clea
           <div>
             <div className="opacity-70 mb-1">Layout</div>
             <div className="text-xs opacity-70">
-              기본은 동심원 고정입니다. 개별 노드 우클릭으로 "Switch to Force"(unlock) 전환 가능.
+              기본은 계층적 자동 배치로 고정됩니다. 개별 노드 우클릭으로 "Switch to Force"(unlock) 전환 가능.
             </div>
           </div>
           <div>

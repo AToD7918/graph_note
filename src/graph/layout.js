@@ -1,38 +1,39 @@
 import { toId } from '../utils/helpers';
 
 /**
- * µ¿½É¿ø ¾ŞÄ¿ °è»ê (Radial Layout Algorithm)
+ * ê³„ì¸µì  ìë™ ë°°ì¹˜ ê³„ì‚° (Hierarchical Auto-Layout Algorithm)
  * 
- * ? ÀÌ ÇÔ¼öÀÇ ¿ªÇÒ:
- * - Core ³ëµå¸¦ Áß½ÉÀ¸·Î ³ëµåµéÀ» µ¿½É¿ø ÇüÅÂ·Î ¹èÄ¡
- * - Based On (¼±Çà ¿¬±¸): Core°¡ ÂüÁ¶ÇÏ´Â ¿¬±¸µé ¡æ ¾ÈÂÊ ¿ø
- * - Cited By (ÈÄ¼Ó ¿¬±¸): Core¸¦ ÂüÁ¶ÇÏ´Â ¿¬±¸µé ¡æ ¹Ù±ùÂÊ ¿ø
+ * ğŸ¯ ì´ í•¨ìˆ˜ì˜ ëª©ì :
+ * - ì‚¬ìš©ìê°€ ë…¸ë“œë¥¼ ìˆ˜ë™ìœ¼ë¡œ ë°°ì¹˜í•˜ì§€ ì•Šì„ ë•Œ ìë™ìœ¼ë¡œ ìì—°ìŠ¤ëŸ½ê²Œ ë°°ì¹˜
+ * - ê·¸ë˜í”„ì˜ ê³„ì¸µ êµ¬ì¡°ë¥¼ ì‹œê°í™”í•˜ë˜, ì •í˜•í™”ëœ ë™ì‹¬ì›ì´ ì•„ë‹Œ ìì—°ìŠ¤ëŸ¬ìš´ íŠ¸ë¦¬ êµ¬ì¡°
+ * - Based On (ì„ í–‰): ì™¼ìª½ ì˜ì—­ì— ë°°ì¹˜
+ * - Core: ì¤‘ì•™ì— ë°°ì¹˜
+ * - Cited By (í›„ì†): ì˜¤ë¥¸ìª½ ì˜ì—­ì— ë°°ì¹˜
  * 
  * @param {Object} baseData - { nodes: [], links: [] }
- * @param {Set<string>} lockedIds - µ¿½É¿ø¿¡ °íÁ¤ÇÒ ³ëµå ID ÁıÇÕ (¼±ÅÃÀû)
- * @returns {Map<string, {x, y}>} °¢ ³ëµåÀÇ °íÁ¤ À§Ä¡ (¾ŞÄ¿)
+ * @param {Set<string>} lockedIds - ìë™ ë°°ì¹˜í•  ë…¸ë“œ ID ì§‘í•© (ì„ íƒì )
+ * @returns {Map<string, {x, y}>} ê° ë…¸ë“œì˜ ê³ ì • ìœ„ì¹˜ (ì•µì»¤)
  * 
- * ? ¾Ë°í¸®Áò ´Ü°è:
- * 1. lockedIds¿¡ ÀÖ´Â ³ëµå¸¸ ÇÊÅÍ¸µ
- * 2. ±×·¡ÇÁ ±¸Á¶ ºĞ¼® (ÀÎÁ¢ ¸®½ºÆ® »ı¼º)
- * 3. BFS·Î °¢ ³ëµåÀÇ ±íÀÌ °è»ê
- * 4. ±íÀÌº°·Î ³ëµå¸¦ ±×·ìÈ­
- * 5. °¢ ±×·ìÀ» ¿øÇüÀ¸·Î ¹èÄ¡
+ * ğŸ”§ ì•Œê³ ë¦¬ì¦˜ íŠ¹ì§•:
+ * 1. BFSë¡œ ê·¸ë˜í”„ ê¹Šì´ ë¶„ì„
+ * 2. ê¹Šì´ë³„ ìˆ˜ì§ ë ˆì´ì–´ ë°°ì¹˜ (ì™¼ìª½â†’ì˜¤ë¥¸ìª½)
+ * 3. ê° ë ˆì´ì–´ ë‚´ì—ì„œëŠ” ìˆ˜ì§ìœ¼ë¡œ ê· ë“± ë°°ì¹˜
+ * 4. ì ë‹¹í•œ ê°„ê²©ìœ¼ë¡œ ê°€ë…ì„± ìµœì í™”
  */
-export function computeRadialAnchors(baseData, lockedIds = null) {
-  // ? lockedIds°¡ Á¦°øµÇ¸é ÇØ´ç ³ëµåµé¸¸ ÇÊÅÍ¸µ
+export function computeHierarchicalLayout(baseData, lockedIds = null) {
+  // ğŸ” lockedIdsê°€ ì œê³µë˜ë©´ í•´ë‹¹ ë…¸ë“œë“¤ë§Œ í•„í„°ë§
   const allNodes = baseData.nodes.map((n) => ({ ...n }));
   const nodes = lockedIds 
     ? allNodes.filter(n => lockedIds.has(n.id))
     : allNodes;
   
-  // °íÁ¤ ³ëµå°¡ ¾øÀ¸¸é ºó Map ¹İÈ¯
+  // ê³ ì • ë…¸ë“œê°€ ì—†ìœ¼ë©´ ë¹ˆ Map ë°˜í™˜
   if (nodes.length === 0) {
-    console.log('?? µ¿½É¿ø °íÁ¤ ³ëµå°¡ ¾ø½À´Ï´Ù.');
+    console.log('âš ï¸ ìë™ ë°°ì¹˜í•  ë…¸ë“œê°€ ì—†ìŠµë‹ˆë‹¤.');
     return new Map();
   }
   
-  // ? °íÁ¤ ³ëµåµé °£ÀÇ ¸µÅ©¸¸ ÃßÃâ
+  // ğŸ”— ê³ ì • ë…¸ë“œë“¤ ê°„ì˜ ë§í¬ë§Œ ì¶”ì¶œ
   const nodeIds = new Set(nodes.map(n => n.id));
   const links = baseData.links
     .map((l) => ({ 
@@ -40,208 +41,342 @@ export function computeRadialAnchors(baseData, lockedIds = null) {
       target: toId(l.target), 
       type: l.type 
     }))
-    .filter(l => nodeIds.has(l.source) && nodeIds.has(l.target)); // ¾çÂÊ ¸ğµÎ °íÁ¤ ³ëµåÀÎ ¸µÅ©¸¸
+    .filter(l => nodeIds.has(l.source) && nodeIds.has(l.target));
   
-  console.log(`? µ¿½É¿ø °è»ê: ${nodes.length}°³ °íÁ¤ ³ëµå, ${links.length}°³ ³»ºÎ ¸µÅ©`);
+  console.log(`ğŸ“Š ê³„ì¸µì  ë°°ì¹˜ ê³„ì‚°: ${nodes.length}ê°œ ë…¸ë“œ, ${links.length}ê°œ ë§í¬`);
   
-  // ? Core ³ëµå Ã£±â (Áß½ÉÀÌ µÉ ³ëµå)
-  // 'core'¶ó´Â id¸¦ °¡Áø ³ëµå, ¾øÀ¸¸é Ã¹ ¹øÂ° ³ëµå
+  // ğŸ¯ Core ë…¸ë“œ ì°¾ê¸° (ì¤‘ì‹¬ì¶•ì´ ë  ë…¸ë“œ)
   const core = nodes.find((n) => n.id.toLowerCase() === 'core') || nodes[0];
 
-  // ? ±×·¡ÇÁ ±¸Á¶ »ı¼º (ÀÎÁ¢ ¸®½ºÆ®)
-  // inToCore: °¢ ³ëµå·Î µé¾î¿À´Â ¿§Áöµé (´©°¡ ³ª¸¦ °¡¸®Å°³ª)
-  // outFromCore: °¢ ³ëµå¿¡¼­ ³ª°¡´Â ¿§Áöµé (³»°¡ ´©±¸¸¦ °¡¸®Å°³ª)
-  const inToCore = new Map();
-  const outFromCore = new Map();
+  // ğŸ“š ê·¸ë˜í”„ êµ¬ì¡° ìƒì„± (ì¸ì ‘ ë¦¬ìŠ¤íŠ¸)
+  const incomingEdges = new Map();
+  const outgoingEdges = new Map();
   
-  // ¸ğµç ³ëµå¿¡ ´ëÇØ ºó Set ÃÊ±âÈ­
   for (const n of nodes) {
-    inToCore.set(n.id, new Set());
-    outFromCore.set(n.id, new Set());
+    incomingEdges.set(n.id, new Set());
+    outgoingEdges.set(n.id, new Set());
   }
   
-  // ¸µÅ©¸¦ º¸°í ÀÎÁ¢ ¸®½ºÆ® Ã¤¿ì±â
   for (const l of links) {
-    inToCore.get(l.target).add(l.source);    // targetÀ¸·Î µé¾î¿À´Â source Ãß°¡
-    outFromCore.get(l.source).add(l.target);  // source¿¡¼­ ³ª°¡´Â target Ãß°¡
+    incomingEdges.get(l.target).add(l.source);
+    outgoingEdges.get(l.source).add(l.target);
   }
 
-  // ? ±íÀÌ °è»ê (BFS - Breadth First Search)
-  // depth: °¢ ³ëµåÀÇ Core·ÎºÎÅÍÀÇ °Å¸®
-  //   - 0: Core ÀÚ½Å
-  //   - À½¼ö: Core°¡ ÂüÁ¶ÇÏ´Â ¼±Çà ¿¬±¸ (based-on) ¡æ ¾ÈÂÊ ¿ø
-  //   - ¾ç¼ö: Core¸¦ ÂüÁ¶ÇÏ´Â ÈÄ¼Ó ¿¬±¸ (cited-by) ¡æ ¹Ù±ùÂÊ ¿ø
-  const depth = new Map([[core.id, 0]]);  // Core´Â ±íÀÌ 0
+  // ğŸ“ ê¹Šì´ ê³„ì‚° (BFS - Breadth First Search)
+  // depth: ê° ë…¸ë“œì˜ Coreë¡œë¶€í„°ì˜ ë…¼ë¦¬ì  ê±°ë¦¬
+  //   - 0: Core ìì‹ 
+  //   - ìŒìˆ˜: Coreê°€ ì°¸ì¡°í•˜ëŠ” ì„ í–‰ ì—°êµ¬ (ì™¼ìª½ ë°°ì¹˜)
+  //   - ì–‘ìˆ˜: Coreë¥¼ ì°¸ì¡°í•˜ëŠ” í›„ì† ì—°êµ¬ (ì˜¤ë¥¸ìª½ ë°°ì¹˜)
+  const depth = new Map([[core.id, 0]]);
   
-  // ?? Based On ¹æÇâ Å½»ö (¼±Çà ¿¬±¸µé ¡æ Core)
-  const q = [core.id];
-  while (q.length) {
-    const v = q.shift();
-    // v·Î µé¾î¿À´Â ¸ğµç ³ëµå È®ÀÎ
-    for (const prev of inToCore.get(v)) {
-      if (!depth.has(prev)) {  // ¾ÆÁ÷ ¹æ¹® ¾È ÇÑ ³ëµå¸é
-        depth.set(prev, (depth.get(v) || 0) - 1);  // ±íÀÌ = ºÎ¸ğ ±íÀÌ - 1 (À½¼ö)
-        q.push(prev);
+  // â¬…ï¸ Based On ë°©í–¥ íƒìƒ‰
+  const q1 = [core.id];
+  while (q1.length) {
+    const v = q1.shift();
+    for (const prev of incomingEdges.get(v)) {
+      if (!depth.has(prev)) {
+        depth.set(prev, (depth.get(v) || 0) - 1);
+        q1.push(prev);
       }
     }
   }
   
-  // ?? Cited By ¹æÇâ Å½»ö (Core ¡æ ÈÄ¼Ó ¿¬±¸µé)
-  const q2 = [core.id];  // Å¥(Queue) ÃÊ±âÈ­
+  // â¡ï¸ Cited By ë°©í–¥ íƒìƒ‰
+  const q2 = [core.id];
   while (q2.length) {
-    const v = q2.shift();  // Å¥¿¡¼­ ³ëµå ÇÏ³ª ²¨³»±â
-    // v¿¡¼­ ³ª°¡´Â ¸ğµç ³ëµå È®ÀÎ
-    for (const nxt of outFromCore.get(v)) {
-      if (!depth.has(nxt)) {  // ¾ÆÁ÷ ¹æ¹® ¾È ÇÑ ³ëµå¸é
-        depth.set(nxt, (depth.get(v) || 0) + 1);  // ±íÀÌ = ºÎ¸ğ ±íÀÌ + 1
-        q2.push(nxt);  // Å¥¿¡ Ãß°¡ (³ªÁß¿¡ ¹æ¹®)
+    const v = q2.shift();
+    for (const nxt of outgoingEdges.get(v)) {
+      if (!depth.has(nxt)) {
+        depth.set(nxt, (depth.get(v) || 0) + 1);
+        q2.push(nxt);
       }
     }
   }
 
-  // ? µ¿½É¿ø ¹èÄ¡ (Radial Positioning)
+  // ğŸ¨ ê³„ì¸µì  ë°°ì¹˜ (Hierarchical Positioning)
   
-  // 1?? ±íÀÌº°·Î ³ëµå ±×·ìÈ­
-  // groups = { -2: ['B1'], -1: ['B2'], 0: ['Core'], 1: ['F1', 'F2'], ... }
-  const groups = {};
+  // 1ï¸âƒ£ ê¹Šì´ë³„ë¡œ ë…¸ë“œ ê·¸ë£¹í™” ë° ì—°ê²° ê´€ê³„ ë§¤í•‘
+  const layers = {};
+  const nodeConnections = new Map(); // ê° ë…¸ë“œì˜ ì¸ì ‘ ë ˆì´ì–´ ì—°ê²° ë…¸ë“œë“¤
+  
   for (const n of nodes) {
-    const d = depth.get(n.id) ?? 0;  // ±íÀÌ °¡Á®¿À±â (¾øÀ¸¸é 0)
-    (groups[d] = groups[d] || []).push(n.id);  // ÇØ´ç ±íÀÌ ¹è¿­¿¡ Ãß°¡
+    const d = depth.get(n.id) ?? 0;
+    (layers[d] = layers[d] || []).push(n.id);
   }
   
-  // 2?? ±íÀÌ Á¤·Ä (¾ÈÂÊºÎÅÍ: -2, -1, 0, 1, 2, ...)
-  const rings = Object.keys(groups).map(Number).sort((a, b) => a - b);
-  
-  // 3?? °¢ ¸µ(ring)ÀÇ ¹İÁö¸§ ¼³Á¤
-  const radiusStep = 100;  // ¸µ °£°İ (ÇÈ¼¿)
-  const anchors = new Map();  // °á°ú: °¢ ³ëµåÀÇ (x, y) À§Ä¡
-  
-  for (const r of rings) {
-    const arr = groups[r];  // ÇØ´ç ±íÀÌÀÇ ³ëµå ¸ñ·Ï
-    const R = Math.abs(r) * radiusStep;  // ¹İÁö¸§ = |±íÀÌ| ¡¿ 100
-    const count = Math.max(1, arr.length);  // ³ëµå °³¼ö
+  // ê° ë…¸ë“œì˜ ì¸ì ‘ ë ˆì´ì–´ ì—°ê²° ë…¸ë“œ ì°¾ê¸°
+  for (const n of nodes) {
+    const d = depth.get(n.id) ?? 0;
+    const connections = new Set();
     
-    // ¿ø µÑ·¹¿¡ ±ÕµîÇÏ°Ô ¹èÄ¡
-    arr.forEach((id, i) => {
-      // °¢µµ °è»ê: 360µµ¸¦ ³ëµå °³¼ö·Î ³ª´®
-      const angle = (2 * Math.PI * i) / count + 
-                    (r < 0 ? Math.PI / count : 0);  // based-on(À½¼ö)Àº ¾à°£ È¸Àü
-      
-      // ±ØÁÂÇ¥ ¡æ Á÷±³ÁÂÇ¥ º¯È¯
-      anchors.set(id, { 
-        x: R * Math.cos(angle),  // x = r ¡¿ cos(¥è)
-        y: R * Math.sin(angle)   // y = r ¡¿ sin(¥è)
-      });
-    });
+    // Coreë¥¼ ê¸°ì¤€ìœ¼ë¡œ ë°©í–¥ ê²°ì •
+    if (d < 0) {
+      // ì„ í–‰ ë…¸ë“œ (Based On, ìŒìˆ˜ ë ˆì´ì–´): Core ë°©í–¥(+1)ì´ "ìì‹"
+      // outgoing: Core ë°©í–¥ìœ¼ë¡œ ë‚˜ê°€ëŠ” ì—£ì§€
+      for (const target of outgoingEdges.get(n.id)) {
+        const targetDepth = depth.get(target);
+        if (targetDepth === d + 1) { // Coreì— ë” ê°€ê¹Œìš´ ë°©í–¥
+          connections.add(target);
+        }
+      }
+      // incoming: Core ë°˜ëŒ€ ë°©í–¥ì—ì„œ ë“¤ì–´ì˜¤ëŠ” ì—£ì§€
+      for (const source of incomingEdges.get(n.id)) {
+        const sourceDepth = depth.get(source);
+        if (sourceDepth === d - 1) { // Coreì—ì„œ ë” ë¨¼ ë°©í–¥
+          connections.add(source);
+        }
+      }
+    } else if (d > 0) {
+      // í›„ì† ë…¸ë“œ (Cited By, ì–‘ìˆ˜ ë ˆì´ì–´): Core ë°©í–¥(-1)ì´ "ë¶€ëª¨"
+      // incoming: Core ë°©í–¥ì—ì„œ ë“¤ì–´ì˜¤ëŠ” ì—£ì§€
+      for (const source of incomingEdges.get(n.id)) {
+        const sourceDepth = depth.get(source);
+        if (sourceDepth === d - 1) { // Coreì— ë” ê°€ê¹Œìš´ ë°©í–¥
+          connections.add(source);
+        }
+      }
+      // outgoing: Core ë°˜ëŒ€ ë°©í–¥ìœ¼ë¡œ ë‚˜ê°€ëŠ” ì—£ì§€
+      for (const target of outgoingEdges.get(n.id)) {
+        const targetDepth = depth.get(target);
+        if (targetDepth === d + 1) { // Coreì—ì„œ ë” ë¨¼ ë°©í–¥
+          connections.add(target);
+        }
+      }
+    } else {
+      // Core ë…¸ë“œ (d === 0): ëª¨ë“  ì¸ì ‘ ë ˆì´ì–´ ì—°ê²°
+      for (const target of outgoingEdges.get(n.id)) {
+        const targetDepth = depth.get(target);
+        if (Math.abs(targetDepth - d) === 1) {
+          connections.add(target);
+        }
+      }
+      for (const source of incomingEdges.get(n.id)) {
+        const sourceDepth = depth.get(source);
+        if (Math.abs(sourceDepth - d) === 1) {
+          connections.add(source);
+        }
+      }
+    }
+    
+    nodeConnections.set(n.id, Array.from(connections));
   }
   
-  // 4?? ±íÀÌ°¡ °è»êµÇÁö ¾ÊÀº ³ëµå´Â Áß¾Ó¿¡ ¹èÄ¡
+  // 2ï¸âƒ£ ë ˆì´ì–´ ì •ë ¬ (ì™¼ìª½ë¶€í„°: -2, -1, 0, 1, 2, ...)
+  const sortedLayers = Object.keys(layers).map(Number).sort((a, b) => a - b);
+  
+  // 3ï¸âƒ£ ë ˆì´ì•„ì›ƒ ì„¤ì •
+  const HORIZONTAL_SPACING = 200;  // ë ˆì´ì–´ ê°„ ê°€ë¡œ ê°„ê²©
+  const BASE_VERTICAL_SPACING = 80; // ê¸°ë³¸ ë…¸ë“œ ê°„ ì„¸ë¡œ ê°„ê²©
+  const anchors = new Map();
+  const layerNodeOrder = new Map(); // ê° ë ˆì´ì–´ì˜ ë…¸ë“œ ìˆœì„œ ì €ì¥
+  
+  // 4ï¸âƒ£ ë ˆì´ì–´ë³„ë¡œ ìˆœì°¨ì ìœ¼ë¡œ ë°°ì¹˜
+  for (const layerIndex of sortedLayers) {
+    const nodeList = layers[layerIndex];
+    const x = layerIndex * HORIZONTAL_SPACING;
+    
+    // ê° ë…¸ë“œì˜ ê³µê°„ ìš”êµ¬ì‚¬í•­ ê³„ì‚°
+    const nodeSpaceRequirement = new Map();
+    for (const nodeId of nodeList) {
+      const connections = nodeConnections.get(nodeId) || [];
+      const maxConnections = Math.max(connections.length, 1);
+      nodeSpaceRequirement.set(nodeId, maxConnections * BASE_VERTICAL_SPACING);
+    }
+    
+    // ì—°ê²°ëœ ë…¸ë“œì˜ ìˆœë²ˆì„ ê¸°ë°˜ìœ¼ë¡œ ì •ë ¬
+    // 1ë‹¨ê³„: ê° ë…¸ë“œì˜ ì •ë ¬ í‚¤ ê³„ì‚° (ì¸ì ‘ ë ˆì´ì–´ ì—°ê²° ë…¸ë“œë“¤ì˜ ìµœì†Œ ìˆœë²ˆ)
+    const nodeSortKeys = new Map();
+    
+    for (const nodeId of nodeList) {
+      const connectedNodes = nodeConnections.get(nodeId) || [];
+      
+      if (connectedNodes.length === 0) {
+        // ì—°ê²°ì´ ì—†ìœ¼ë©´ í° ê°’ (ë§¨ ì•„ë˜)
+        nodeSortKeys.set(nodeId, { minIndex: 999999, avgIndex: 999999, nodeId });
+      } else {
+        // ì—°ê²°ëœ ë…¸ë“œë“¤ì˜ ìˆœë²ˆ í™•ì¸ (ì¸ì ‘ ë ˆì´ì–´)
+        const connectedIndices = connectedNodes
+          .map(cId => {
+            const connectedLayer = depth.get(cId);
+            const connectedOrder = layerNodeOrder.get(connectedLayer);
+            return connectedOrder ? connectedOrder.indexOf(cId) : -1;
+          })
+          .filter(idx => idx !== -1);
+        
+        if (connectedIndices.length === 0) {
+          // ì—°ê²°ì€ ìˆì§€ë§Œ ìˆœë²ˆì„ ì°¾ì„ ìˆ˜ ì—†ìœ¼ë©´ (ì¸ì ‘ ë ˆì´ì–´ ë¯¸ë°°ì¹˜)
+          nodeSortKeys.set(nodeId, { minIndex: 999999, avgIndex: 999999, nodeId });
+        } else {
+          // ì—°ê²°ëœ ë…¸ë“œë“¤ì˜ ìµœì†Œ ìˆœë²ˆê³¼ í‰ê·  ìˆœë²ˆ ê³„ì‚°
+          const minIndex = Math.min(...connectedIndices);
+          const avgIndex = connectedIndices.reduce((sum, idx) => sum + idx, 0) / connectedIndices.length;
+          nodeSortKeys.set(nodeId, { minIndex, avgIndex, nodeId });
+        }
+      }
+    }
+    
+    // 2ë‹¨ê³„: ì •ë ¬ í‚¤ë¥¼ ê¸°ì¤€ìœ¼ë¡œ ì •ë ¬
+    // ìš°ì„ ìˆœìœ„: 1) ìµœì†Œ ë¶€ëª¨ ìˆœë²ˆ, 2) í‰ê·  ë¶€ëª¨ ìˆœë²ˆ, 3) ë…¸ë“œ ID
+    const orderedNodes = [...nodeList].sort((a, b) => {
+      const keyA = nodeSortKeys.get(a);
+      const keyB = nodeSortKeys.get(b);
+      
+      // ìµœì†Œ ë¶€ëª¨ ìˆœë²ˆìœ¼ë¡œ ë¨¼ì € ë¹„êµ
+      if (keyA.minIndex !== keyB.minIndex) {
+        return keyA.minIndex - keyB.minIndex;
+      }
+      
+      // ìµœì†Œê°’ì´ ê°™ìœ¼ë©´ í‰ê·  ìˆœë²ˆìœ¼ë¡œ ë¹„êµ
+      if (keyA.avgIndex !== keyB.avgIndex) {
+        return keyA.avgIndex - keyB.avgIndex;
+      }
+      
+      // ëª¨ë‘ ê°™ìœ¼ë©´ ë…¸ë“œ IDë¡œ ë¹„êµ (ì•ˆì •ì ì¸ ì •ë ¬)
+      return a.localeCompare(b);
+    });
+    
+    // í˜„ì¬ ë ˆì´ì–´ì˜ ìˆœì„œ ì €ì¥
+    layerNodeOrder.set(layerIndex, orderedNodes);
+    
+    // 5ï¸âƒ£ Y ìœ„ì¹˜ ê³„ì‚° (ë™ì  ê°„ê²© ì ìš©)
+    let currentY = 0;
+    const positions = [];
+    
+    for (let i = 0; i < orderedNodes.length; i++) {
+      const nodeId = orderedNodes[i];
+      const requiredSpace = nodeSpaceRequirement.get(nodeId);
+      
+      if (i === 0) {
+        currentY = 0;
+      } else {
+        const prevNodeId = orderedNodes[i - 1];
+        const prevSpace = nodeSpaceRequirement.get(prevNodeId);
+        const gap = (prevSpace + requiredSpace) / 2;
+        currentY = positions[i - 1].y + gap;
+      }
+      
+      positions.push({ id: nodeId, y: currentY });
+    }
+    
+    // 6ï¸âƒ£ ì¤‘ì‹¬ ì •ë ¬
+    if (positions.length > 0) {
+      const minY = Math.min(...positions.map(p => p.y));
+      const maxY = Math.max(...positions.map(p => p.y));
+      const centerOffset = -(minY + maxY) / 2;
+      
+      for (const pos of positions) {
+        anchors.set(pos.id, { x, y: pos.y + centerOffset });
+      }
+    }
+  }
+  
+  // 7ï¸âƒ£ ê¹Šì´ê°€ ê³„ì‚°ë˜ì§€ ì•Šì€ ê³ ë¦½ ë…¸ë“œëŠ” ì¤‘ì•™ì— ë°°ì¹˜
   for (const n of nodes) {
     if (!anchors.has(n.id)) {
       anchors.set(n.id, { x: 0, y: 0 });
     }
   }
   
-  return anchors;  // Map<nodeId, {x, y}>
+  return anchors;
 }
 
 /**
- * ¸µÅ© °î·ü °è»ê (Link Curvature - A¾È)
+ * ë§í¬ ê³¡ë¥  ê³„ì‚° (Link Curvature - Aì•ˆ)
  * 
- * ? ÀÌ ÇÔ¼öÀÇ ¿ªÇÒ:
- * - ¸µÅ©°¡ ´Ù¸¥ ³ëµå¿Í °ãÄ¥ ¶§ °î¼±À¸·Î Ç¥½Ã
- * - Á÷¼± ¸µÅ©°¡ ³ëµå¸¦ Áö³ª°¡¸é º¸±â ¾î·Á¿ò ¡æ °î¼±À¸·Î ¿ìÈ¸
+ * ? ì´ í•¨ìˆ˜ì˜ ì—­í• :
+ * - ë§í¬ê°€ ë‹¤ë¥¸ ë…¸ë“œì™€ ê²¹ì¹  ë•Œ ê³¡ì„ ìœ¼ë¡œ í‘œì‹œ
+ * - ì§ì„  ë§í¬ê°€ ë…¸ë“œë¥¼ ì§€ë‚˜ê°€ë©´ ë³´ê¸° ì–´ë ¤ì›€ â†’ ê³¡ì„ ìœ¼ë¡œ ìš°íšŒ
  * 
- * @param {Object} derivedData - { nodes: [], links: [] } (½Ã¹Ä·¹ÀÌ¼Ç ÁßÀÎ µ¥ÀÌÅÍ)
- * @returns {Function} ¸µÅ© ¡æ °î·ü °ª (-1 ~ 1)
+ * @param {Object} derivedData - { nodes: [], links: [] } (ì‹œë®¬ë ˆì´ì…˜ ì¤‘ì¸ ë°ì´í„°)
+ * @returns {Function} ë§í¬ â†’ ê³¡ë¥  ê°’ (-1 ~ 1)
  * 
- * ? ÀÛµ¿ ¿ø¸®:
- * 1. ¸µÅ©ÀÇ ¼±ºĞ(source ¡æ target) °è»ê
- * 2. ´Ù¸¥ ³ëµåµéÀÌ ÀÌ ¼±ºĞ°ú °¡±î¿îÁö °Ë»ç
- * 3. °¡±î¿ì¸é °î·ü Àû¿ë (³ëµå ÇÇÇÏ±â)
+ * ? ì‘ë™ ì›ë¦¬:
+ * 1. ë§í¬ì˜ ì„ ë¶„(source â†’ target) ê³„ì‚°
+ * 2. ë‹¤ë¥¸ ë…¸ë“œë“¤ì´ ì´ ì„ ë¶„ê³¼ ê°€ê¹Œìš´ì§€ ê²€ì‚¬
+ * 3. ê°€ê¹Œìš°ë©´ ê³¡ë¥  ì ìš© (ë…¸ë“œ í”¼í•˜ê¸°)
  */
 export function makeCurvatureAccessor(derivedData) {
-  // Å¬·ÎÀú(Closure): derivedData¸¦ ±â¾ïÇÏ´Â ÇÔ¼ö ¹İÈ¯
+  // í´ë¡œì €(Closure): derivedDataë¥¼ ê¸°ì–µí•˜ëŠ” í•¨ìˆ˜ ë°˜í™˜
   return (l) => {
-    // ? ¸µÅ©ÀÇ Ãâ¹ßÁ¡(s)°ú µµÂøÁ¡(t)
+    // ? ë§í¬ì˜ ì¶œë°œì (s)ê³¼ ë„ì°©ì (t)
     const s = l.source, t = l.target;
     
-    // ? ÁÂÇ¥°¡ ¾øÀ¸¸é °î·ü 0 (Á÷¼±)
+    // ? ì¢Œí‘œê°€ ì—†ìœ¼ë©´ ê³¡ë¥  0 (ì§ì„ )
     if (!s || !t || s.x == null || s.y == null || t.x == null || t.y == null) return 0;
     
-    // ? º¤ÅÍ °è»ê: source ¡æ target
-    const dx = t.x - s.x;  // x ¹æÇâ °Å¸®
-    const dy = t.y - s.y;  // y ¹æÇâ °Å¸®
-    const segLen = Math.hypot(dx, dy);  // ¼±ºĞ ±æÀÌ ¡î(dx©÷+dy©÷)
+    // ? ë²¡í„° ê³„ì‚°: source â†’ target
+    const dx = t.x - s.x;  // x ë°©í–¥ ê±°ë¦¬
+    const dy = t.y - s.y;  // y ë°©í–¥ ê±°ë¦¬
+    const segLen = Math.hypot(dx, dy);  // ì„ ë¶„ ê¸¸ì´ âˆš(dxÂ²+dyÂ²)
     
-    // ¼±ºĞÀÌ ³Ê¹« ÂªÀ¸¸é °î¼± ºÒÇÊ¿ä
+    // ì„ ë¶„ì´ ë„ˆë¬´ ì§§ìœ¼ë©´ ê³¡ì„  ë¶ˆí•„ìš”
     if (segLen < 2) return 0;
     
-    // ? ÀÓ°è°ª ¼³Á¤
-    const thresh = 18;  // ³ëµå¿ÍÀÇ ÃÖ¼Ò °Å¸® (ÇÈ¼¿)
-    const thresh2 = thresh * thresh;  // Á¦°ö (ºñ±³¿ë, sqrt ¿¬»ê »ı·«)
+    // ? ì„ê³„ê°’ ì„¤ì •
+    const thresh = 18;  // ë…¸ë“œì™€ì˜ ìµœì†Œ ê±°ë¦¬ (í”½ì…€)
+    const thresh2 = thresh * thresh;  // ì œê³± (ë¹„êµìš©, sqrt ì—°ì‚° ìƒëµ)
     
     /**
-     * ? Á¡¿¡¼­ ¼±ºĞ±îÁöÀÇ ÃÖ´Ü °Å¸® °è»ê
+     * ? ì ì—ì„œ ì„ ë¶„ê¹Œì§€ì˜ ìµœë‹¨ ê±°ë¦¬ ê³„ì‚°
      * 
-     * @param {number} px, py - È®ÀÎÇÒ Á¡ÀÇ ÁÂÇ¥
-     * @returns {Object} { d2: °Å¸®ÀÇ Á¦°ö, b: ¸Å°³º¯¼ö (0~1) }
+     * @param {number} px, py - í™•ì¸í•  ì ì˜ ì¢Œí‘œ
+     * @returns {Object} { d2: ê±°ë¦¬ì˜ ì œê³±, b: ë§¤ê°œë³€ìˆ˜ (0~1) }
      * 
-     * ¸Å°³º¯¼ö b:
-     * - 0: °¡Àå °¡±î¿î ÁöÁ¡ÀÌ source
-     * - 1: °¡Àå °¡±î¿î ÁöÁ¡ÀÌ target
-     * - 0~1: ¼±ºĞ À§ÀÇ ¾î´À ÁöÁ¡
+     * ë§¤ê°œë³€ìˆ˜ b:
+     * - 0: ê°€ì¥ ê°€ê¹Œìš´ ì§€ì ì´ source
+     * - 1: ê°€ì¥ ê°€ê¹Œìš´ ì§€ì ì´ target
+     * - 0~1: ì„ ë¶„ ìœ„ì˜ ì–´ëŠ ì§€ì 
      */
     const dist2AndParam = (px, py) => {
-      const wx = px - s.x, wy = py - s.y;  // Á¡ ¡æ source º¤ÅÍ
-      const c1 = dx * wx + dy * wy;  // ³»Àû (dot product)
+      const wx = px - s.x, wy = py - s.y;  // ì  â†’ source ë²¡í„°
+      const c1 = dx * wx + dy * wy;  // ë‚´ì  (dot product)
       
-      // Á¡ÀÌ source µÚÂÊ¿¡ ÀÖÀ½
+      // ì ì´ source ë’¤ìª½ì— ìˆìŒ
       if (c1 <= 0) return { d2: (px - s.x) ** 2 + (py - s.y) ** 2, b: 0 };
       
-      const c2 = dx * dx + dy * dy;  // ¼±ºĞ ±æÀÌÀÇ Á¦°ö
+      const c2 = dx * dx + dy * dy;  // ì„ ë¶„ ê¸¸ì´ì˜ ì œê³±
       
-      // Á¡ÀÌ target ¾ÕÂÊ¿¡ ÀÖÀ½
+      // ì ì´ target ì•ìª½ì— ìˆìŒ
       if (c2 <= c1) return { d2: (px - t.x) ** 2 + (py - t.y) ** 2, b: 1 };
       
-      // Á¡ÀÌ ¼±ºĞ Áß°£¿¡ ÀÖÀ½ ¡æ ¼ö¼±ÀÇ ¹ß °è»ê
-      const b = c1 / c2;  // ¸Å°³º¯¼ö (0~1)
-      const bx = s.x + b * dx;  // ¼ö¼±ÀÇ ¹ß x ÁÂÇ¥
-      const by = s.y + b * dy;  // ¼ö¼±ÀÇ ¹ß y ÁÂÇ¥
+      // ì ì´ ì„ ë¶„ ì¤‘ê°„ì— ìˆìŒ â†’ ìˆ˜ì„ ì˜ ë°œ ê³„ì‚°
+      const b = c1 / c2;  // ë§¤ê°œë³€ìˆ˜ (0~1)
+      const bx = s.x + b * dx;  // ìˆ˜ì„ ì˜ ë°œ x ì¢Œí‘œ
+      const by = s.y + b * dy;  // ìˆ˜ì„ ì˜ ë°œ y ì¢Œí‘œ
       return { d2: (px - bx) ** 2 + (py - by) ** 2, b };
     };
     
-    // ? ¸ğµç ³ëµå °Ë»ç: ÀÌ ¼±ºĞ°ú °¡±î¿î ³ëµå°¡ ÀÖ³ª?
+    // ? ëª¨ë“  ë…¸ë“œ ê²€ì‚¬: ì´ ì„ ë¶„ê³¼ ê°€ê¹Œìš´ ë…¸ë“œê°€ ìˆë‚˜?
     for (const n of derivedData.nodes) {
-      // source³ª target ÀÚ½ÅÀº Á¦¿Ü
+      // sourceë‚˜ target ìì‹ ì€ ì œì™¸
       if (n === s || n === t) continue;
       
       const nx = n.x, ny = n.y;
-      if (nx == null || ny == null) continue;  // ÁÂÇ¥ ¾øÀ¸¸é ½ºÅµ
+      if (nx == null || ny == null) continue;  // ì¢Œí‘œ ì—†ìœ¼ë©´ ìŠ¤í‚µ
       
-      // ³ëµå¿¡¼­ ¼±ºĞ±îÁöÀÇ °Å¸® °è»ê
+      // ë…¸ë“œì—ì„œ ì„ ë¶„ê¹Œì§€ì˜ ê±°ë¦¬ ê³„ì‚°
       const { d2, b } = dist2AndParam(nx, ny);
       
-      // ¼±ºĞ ¾ç ³¡ 18% ±¸°£Àº ¹«½Ã (È­»ìÇ¥ ±ÙÃ³)
+      // ì„ ë¶„ ì–‘ ë 18% êµ¬ê°„ì€ ë¬´ì‹œ (í™”ì‚´í‘œ ê·¼ì²˜)
       if (b <= 0.18 || b >= 0.82) continue;
       
-      // ? Ãæµ¹ °¨Áö: ³ëµå°¡ ¼±ºĞ°ú °¡±î¿ò!
+      // ? ì¶©ëŒ ê°ì§€: ë…¸ë“œê°€ ì„ ë¶„ê³¼ ê°€ê¹Œì›€!
       if (d2 < thresh2) {
-        // ? ¿ÜÀû(cross product)À¸·Î ¹æÇâ °áÁ¤
-        // - ¾ç¼ö: ¿ŞÂÊÀ¸·Î ÈÖ¾îÁü
-        // - À½¼ö: ¿À¸¥ÂÊÀ¸·Î ÈÖ¾îÁü
+        // ? ì™¸ì (cross product)ìœ¼ë¡œ ë°©í–¥ ê²°ì •
+        // - ì–‘ìˆ˜: ì™¼ìª½ìœ¼ë¡œ íœ˜ì–´ì§
+        // - ìŒìˆ˜: ì˜¤ë¥¸ìª½ìœ¼ë¡œ íœ˜ì–´ì§
         const cross = dx * (ny - s.y) - dy * (nx - s.x);
         const sign = cross >= 0 ? 1 : -1;
         
-        // ? °î·ü °­µµ °è»ê: °¡±î¿ï¼ö·Ï ¸¹ÀÌ ÈÚ
+        // ? ê³¡ë¥  ê°•ë„ ê³„ì‚°: ê°€ê¹Œìš¸ìˆ˜ë¡ ë§ì´ íœ¨
         const tight = Math.max(0, 1 - Math.sqrt(d2) / thresh);
         
-        // ÃÖÁ¾ °î·ü: ±âº» 0.10 + °Å¸® ±â¹İ º¸Á¤ 0.06
+        // ìµœì¢… ê³¡ë¥ : ê¸°ë³¸ 0.10 + ê±°ë¦¬ ê¸°ë°˜ ë³´ì • 0.06
         return (0.10 + 0.06 * tight) * sign;
       }
     }
     
-    // Ãæµ¹ÇÏ´Â ³ëµå°¡ ¾øÀ¸¸é Á÷¼±(°î·ü 0)
+    // ì¶©ëŒí•˜ëŠ” ë…¸ë“œê°€ ì—†ìœ¼ë©´ ì§ì„ (ê³¡ë¥  0)
     return 0;
   };
 }

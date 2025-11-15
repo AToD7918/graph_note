@@ -9,7 +9,7 @@ import { rebuildTagsIndex, loadTagsIndex, saveTagsIndex } from '../utils/tagHelp
  * 책임:
  * - 그래프 구조 (nodes, links) 관리
  * - 노드 스타일 (nodeStyles) 관리
- * - 동심원 고정 노드 (lockedIds) 관리
+ * - 자동 배치 고정 노드 (lockedIds) 관리
  * - 노드 위치 (savedNodePositions) 관리
  * - 태그 인덱스 관리
  * - 데이터 영속성 (localStorage/Remote)
@@ -122,7 +122,7 @@ export const useGraphStore = create((set, get) => {
       get().saveToStorage();
     },
 
-    // === 동심원 고정 액션 ===
+    // === 자동 배치 고정 액션 ===
     toggleLock: (nodeId) => {
       set((state) => {
         const newLockedIds = new Set(state.lockedIds);

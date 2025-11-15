@@ -87,7 +87,7 @@ export function seedCore5() {
     // 🎨 노드 스타일: 각 노드의 시각적 설정 (비어있으면 기본값 사용)
     nodeStyles: {},
     
-    // 🔒 고정된 노드 목록: 이 노드들은 동심원 위치에 고정됨 (force simulation 미적용)
+    // 🔒 고정된 노드 목록: 이 노드들은 계층적 자동 배치에 의해 고정됨 (force simulation 미적용)
     lockedIds: ['Core', 'F1', 'F2', 'B1', 'B2']
   };
 }

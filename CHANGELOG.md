@@ -1,3 +1,49 @@
+# 레이아웃 알고리즘 변경 (v1.3)
+
+## ? 변경사항 요약
+
+### 동심원 배치 → 계층적 자동 배치로 대체
+
+**이전 (v1.2)**:
+- 동심원(Radial) 배치: Core를 중심으로 원형으로 노드 배치
+- 정형화된 패턴, 노드가 많을 때 겹침 문제
+
+**이후 (v1.3)**:
+- 계층적(Hierarchical) 자동 배치: 트리 구조로 자연스럽게 배치
+- 왼쪽→오른쪽 방향으로 계층 구조 시각화
+- 가독성 향상, 노드 간 관계가 더 명확
+
+### 주요 개선사항
+
+1. ? **자연스러운 배치**: 정형화된 원형 대신 트리 형태의 자유로운 레이아웃
+2. ? **가로 레이어 구조**: Based On(왼쪽) ← Core(중앙) → Cited By(오른쪽)
+3. ? **가독성 향상**: 각 레이어 내에서 수직으로 균등 배치되어 겹침 최소화
+4. ? **성능 유지**: 기존 최적화 로직(공간 해시 그리드) 모두 유지
+
+---
+
+## ? 변경된 파일
+
+### 1. `src/graph/layout.js`
+- `computeRadialAnchors()` → `computeHierarchicalLayout()`로 대체
+- 동심원 기반 극좌표 계산 → 계층별 직교좌표 계산
+- 레이어 간격: 200px (가로), 노드 간격: 100px (세로)
+
+### 2. `src/App.jsx`
+- `radialAnchors` → `hierarchicalAnchors`로 변수명 변경
+- 모든 관련 함수 호출 업데이트
+- 주석 업데이트: "동심원" → "계층적 자동 배치"
+
+### 3. `src/utils/nodePositionOptimizer.js`
+- 함수 파라미터 이름 변경: `radialAnchors` → `hierarchicalAnchors`
+- JSDoc 주석 업데이트
+
+### 4. `src/store/graphStore.js`, `src/data/seedData.js`, `src/components/SettingsModal.jsx`
+- 주석 및 UI 텍스트 업데이트
+- "동심원 고정" → "계층적 자동 배치" 또는 "자동 배치 고정"
+
+---
+
 # 컴포넌트 분리 업데이트 (v1.2)
 
 ## ? 변경사항 요약
