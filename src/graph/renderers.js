@@ -16,14 +16,13 @@
  * 노드 그리기 함수 생성
  * 
  * @param {Object} nodeStyles - 각 노드의 스타일 설정 { nodeId: { size, shape, color, ... } }
- * @param {Set} lockedIds - 고정된 노드 ID 목록
  * @param {string|null} selectedId - 현재 선택된 노드 ID (노트 패널에서 보고 있는 노드)
  * @returns {Function} (node, ctx, globalScale) => void
  * 
  * ? 반환하는 함수는 react-force-graph-2d가 각 프레임마다 호출
  */
-export function makeNodeCanvasObject(nodeStyles, lockedIds, selectedId = null) {
-  // 클로저: nodeStyles와 lockedIds를 기억하는 렌더링 함수 반환
+export function makeNodeCanvasObject(nodeStyles, selectedId = null) {
+  // 클로저: nodeStyles를 기억하는 렌더링 함수 반환
   return (node, ctx, globalScale) => {
     // ? 스타일 가져오기 (없으면 빈 객체)
     const style = nodeStyles[node.id] || {};
@@ -89,25 +88,11 @@ export function makeNodeCanvasObject(nodeStyles, lockedIds, selectedId = null) {
       ctx.beginPath();
       ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
       ctx.fill();
-      
-      // 고정된 노드는 흰색 테두리 (같은 경로에 stroke)
-      if (lockedIds.has(node.id)) {
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#fff';
-        ctx.stroke();
-      }
     } else {
       const s = r * 2.0;
       ctx.beginPath();
       ctx.rect(node.x - s / 2, node.y - s / 2, s, s);
       ctx.fill();
-      
-      // 고정된 노드는 흰색 테두리 (같은 경로에 stroke)
-      if (lockedIds.has(node.id)) {
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#fff';
-        ctx.stroke();
-      }
     }
     
     // ? Core 노드(Group 1)는 내부에 흰 원 표시
@@ -237,5 +222,106 @@ export function makeNodePointerAreaPaint(nodeStyles) {
       const s = r * 2.0;
       ctx.fillRect(node.x - s / 2, node.y - s / 2, s, s);
     }
+  };
+}
+
+/**
+ * 링크 곡률 계산 (Link Curvature)
+ * 
+ * 이 함수의 역할:
+ * - 링크가 다른 노드와 겹칠 때 곡선으로 표시
+ * - 직선 링크가 노드를 지나가면 보기 어려움 → 곡선으로 우회
+ * 
+ * @param {Object} derivedData - { nodes: [], links: [] } (시뮬레이션 중인 데이터)
+ * @returns {Function} 링크 → 곡률 값 (-1 ~ 1)
+ * 
+ * 작동 원리:
+ * 1. 링크의 선분(source → target) 계산
+ * 2. 다른 노드들이 이 선분과 가까운지 검사
+ * 3. 가까우면 곡률 적용 (노드 피하기)
+ */
+export function makeCurvatureAccessor(derivedData) {
+  // 클로저(Closure): derivedData를 기억하는 함수 반환
+  return (l) => {
+    // 링크의 출발점(s)과 도착점(t)
+    const s = l.source, t = l.target;
+    
+    // 좌표가 없으면 곡률 0 (직선)
+    if (!s || !t || s.x == null || s.y == null || t.x == null || t.y == null) return 0;
+    
+    // 벡터 계산: source → target
+    const dx = t.x - s.x;  // x 방향 거리
+    const dy = t.y - s.y;  // y 방향 거리
+    const segLen = Math.hypot(dx, dy);  // 선분 길이 √(dx²+dy²)
+    
+    // 선분이 너무 짧으면 곡선 불필요
+    if (segLen < 2) return 0;
+    
+    // 임계값 설정
+    const thresh = 18;  // 노드와의 최소 거리 (픽셀)
+    const thresh2 = thresh * thresh;  // 제곱 (비교용, sqrt 연산 생략)
+    
+    /**
+     * 점에서 선분까지의 최단 거리 계산
+     * 
+     * @param {number} px, py - 확인할 점의 좌표
+     * @returns {Object} { d2: 거리의 제곱, b: 매개변수 (0~1) }
+     * 
+     * 매개변수 b:
+     * - 0: 가장 가까운 지점이 source
+     * - 1: 가장 가까운 지점이 target
+     * - 0~1: 선분 위의 어느 지점
+     */
+    const dist2AndParam = (px, py) => {
+      const wx = px - s.x, wy = py - s.y;  // 점 → source 벡터
+      const c1 = dx * wx + dy * wy;  // 내적 (dot product)
+      
+      // 점이 source 뒤쪽에 있음
+      if (c1 <= 0) return { d2: (px - s.x) ** 2 + (py - s.y) ** 2, b: 0 };
+      
+      const c2 = dx * dx + dy * dy;  // 선분 길이의 제곱
+      
+      // 점이 target 앞쪽에 있음
+      if (c2 <= c1) return { d2: (px - t.x) ** 2 + (py - t.y) ** 2, b: 1 };
+      
+      // 점이 선분 중간에 있음 → 수선의 발 계산
+      const b = c1 / c2;  // 매개변수 (0~1)
+      const bx = s.x + b * dx;  // 수선의 발 x 좌표
+      const by = s.y + b * dy;  // 수선의 발 y 좌표
+      return { d2: (px - bx) ** 2 + (py - by) ** 2, b };
+    };
+    
+    // 모든 노드 검사: 이 선분과 가까운 노드가 있나?
+    for (const n of derivedData.nodes) {
+      // source나 target 자신은 제외
+      if (n === s || n === t) continue;
+      
+      const nx = n.x, ny = n.y;
+      if (nx == null || ny == null) continue;  // 좌표 없으면 스킵
+      
+      // 노드에서 선분까지의 거리 계산
+      const { d2, b } = dist2AndParam(nx, ny);
+      
+      // 선분 양 끝 18% 구간은 무시 (화살표 근처)
+      if (b <= 0.18 || b >= 0.82) continue;
+      
+      // 충돌 감지: 노드가 선분과 가까움!
+      if (d2 < thresh2) {
+        // 외적(cross product)으로 방향 결정
+        // - 양수: 왼쪽으로 휘어짐
+        // - 음수: 오른쪽으로 휘어짐
+        const cross = dx * (ny - s.y) - dy * (nx - s.x);
+        const sign = cross >= 0 ? 1 : -1;
+        
+        // 곡률 강도 계산: 가까울수록 많이 휨
+        const tight = Math.max(0, 1 - Math.sqrt(d2) / thresh);
+        
+        // 최종 곡률: 기본 0.10 + 거리 기반 보정 0.06
+        return (0.10 + 0.06 * tight) * sign;
+      }
+    }
+    
+    // 충돌하는 노드가 없으면 직선(곡률 0)
+    return 0;
   };
 }

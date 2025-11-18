@@ -1,14 +1,7 @@
 import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react';
 import { toId, genId } from './utils/helpers';
 import { initializeSeedNotes } from './adapters/noteStorage';
-import { computeHierarchicalLayout } from './graph/layout';
 import { ensureTagsField } from './utils/tagHelpers';
-import { 
-  SpatialHashGrid, 
-  computeNewNodePosition, 
-  buildNodePositionCache,
-  hasFixedPosition 
-} from './utils/nodePositionOptimizer';
 import { useGraphStore } from './store/graphStore';
 import { useUIStore } from './store/uiStore';
 import { GraphContainer } from './components/GraphContainer';
@@ -52,14 +45,11 @@ export default function App() {
   const {
     graph,
     nodeStyles,
-    lockedIds,
     savedNodePositions,
     tagsIndex,
     updateNode,
     addNode: addNodeToGraph,
     setNodeStyle,
-    toggleLock,
-    setLockedIds,
     saveNodePosition,
     clearStorage,
     setStorageMode,
@@ -103,8 +93,7 @@ export default function App() {
     group: 2, 
     linkType: 'based-on', 
     connectTo: 'Core', 
-    isCore: false, 
-    isLocked: false 
+    isCore: false
   });
 
   // === IndexedDB 초기화 (Seed Notes) ===
@@ -140,17 +129,7 @@ export default function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // === 계층적 자동 배치 앵커 & 고정 좌표 적용 + 저장된 위치 복원 ===
-  const hierarchicalAnchors = useMemo(() => 
-    computeHierarchicalLayout(graph, lockedIds), 
-    [graph, lockedIds]
-  );
 
-  // === 노드 위치 캐시 (성능 최적화) ===
-  const nodePositionCache = useMemo(() => 
-    buildNodePositionCache(graph.nodes, lockedIds, hierarchicalAnchors, savedNodePositions),
-    [graph.nodes, lockedIds, hierarchicalAnchors, savedNodePositions]
-  );
 
   const derivedData = useMemo(() => {
     const nodes = graph.nodes.map((n) => ({ ...n }));
@@ -160,88 +139,20 @@ export default function App() {
       type: l.type 
     }));
     
-    const nodeMap = new Map(nodes.map(n => [n.id, n]));
-    
-    // 공간 해시 그리드 생성 (충돌 검사 최적화)
-    const spatialGrid = new SpatialHashGrid(50);
-    
-    // 1단계: 이미 위치가 확정된 노드들을 그리드에 추가
+    // 저장된 위치가 있는 노드는 해당 위치로 고정
     for (const n of nodes) {
-      if (hasFixedPosition(n, lockedIds, savedNodePositions)) {
-        const cachedPos = nodePositionCache.get(n.id);
-        if (cachedPos) {
-          spatialGrid.insert(cachedPos.x, cachedPos.y, n.id);
-        }
-      }
-    }
-    
-    // 2단계: 각 노드에 위치 적용
-    for (const n of nodes) {
-      if (lockedIds.has(n.id)) { 
-        // 계층적 자동 배치 고정 노드
-        const a = hierarchicalAnchors.get(n.id); 
-        n.fx = a?.x ?? 0; 
-        n.fy = a?.y ?? 0;
-        n.vx = 0;
-        n.vy = 0;
-      } else if (savedNodePositions[n.id]) {
-        // 저장된 위치가 있는 노드
+      if (savedNodePositions[n.id]) {
         n.x = savedNodePositions[n.id].x;
         n.y = savedNodePositions[n.id].y;
         n.fx = savedNodePositions[n.id].x;
         n.fy = savedNodePositions[n.id].y;
         n.vx = 0;
         n.vy = 0;
-      } else if (n.x != null && n.y != null && n.fx != null && n.fy != null) {
-        // 이미 위치가 확정된 노드 (재계산 스킵)
-        continue;
-      } else { 
-        const parentLink = links.find(l => 
-          toId(l.target) === n.id || toId(l.source) === n.id
-        );
-        
-        if (parentLink) {
-          const parentId = toId(parentLink.target) === n.id 
-            ? toId(parentLink.source) 
-            : toId(parentLink.target);
-          
-          const parentNode = nodeMap.get(parentId);
-          
-          if (parentNode) {
-            // 최적화된 위치 계산 함수 사용 (공간 해시 그리드)
-            const position = computeNewNodePosition(
-              n,
-              links,
-              nodeMap,
-              lockedIds,
-              hierarchicalAnchors,
-              savedNodePositions,
-              spatialGrid
-            );
-            
-            const finalX = position.x;
-            const finalY = position.y;
-            
-            n.x = finalX;
-            n.y = finalY;
-            n.fx = finalX;
-            n.fy = finalY;
-            n.vx = 0;
-            n.vy = 0;
-          } else {
-            if (n.x == null) n.x = 0;
-            if (n.y == null) n.y = 0;
-            n.fx = n.x;
-            n.fy = n.y;
-            n.vx = 0;
-            n.vy = 0;
-          }
-        }
       }
     }
     
     return { nodes, links };
-  }, [graph, lockedIds, hierarchicalAnchors, savedNodePositions, nodePositionCache]);
+  }, [graph, savedNodePositions]);
 
   // === 선택된 노트 ===
   const selectedNote = useMemo(() => 
@@ -254,87 +165,67 @@ export default function App() {
     const id = genId();
     const group = Number(addForm.group) || 2;
     
-    let initialX = 0, initialY = 0;
+    // 새 노드는 연결된 부모 노드 근처에 배치
+    const connectToId = addForm.connectTo || 'Core';
+    let parentX = 0, parentY = 0;
     
-    if (!addForm.isLocked) {
-      const connectToId = addForm.connectTo || 'Core';
-      
-      let parentX = 0, parentY = 0;
-      
-      if (lockedIds.has(connectToId)) {
-        const anchor = hierarchicalAnchors.get(connectToId);
-        parentX = anchor?.x ?? 0;
-        parentY = anchor?.y ?? 0;
-      } else if (savedNodePositions[connectToId]) {
-        parentX = savedNodePositions[connectToId].x;
-        parentY = savedNodePositions[connectToId].y;
-      } else {
-        const parentNode = graph.nodes.find(n => n.id === connectToId);
-        if (parentNode && parentNode.x != null && parentNode.y != null) {
-          parentX = parentNode.x;
-          parentY = parentNode.y;
-        }
+    if (savedNodePositions[connectToId]) {
+      parentX = savedNodePositions[connectToId].x;
+      parentY = savedNodePositions[connectToId].y;
+    } else {
+      const parentNode = graph.nodes.find(n => n.id === connectToId);
+      if (parentNode && parentNode.x != null && parentNode.y != null) {
+        parentX = parentNode.x;
+        parentY = parentNode.y;
       }
+    }
+    
+    const minDistance = 20;
+    const maxDistance = 30;
+    const minNodeGap = 25;
+    const maxAttempts = 12;
+    
+    let initialX = 0, initialY = 0;
+    let foundValidPosition = false;
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const distance = minDistance + Math.random() * (maxDistance - minDistance);
+      const baseAngle = Math.random() * 2 * Math.PI;
+      const angle = baseAngle + (attempt * Math.PI / 6);
       
-      const minDistance = 20;
-      const maxDistance = 30;
-      const minNodeGap = 25;
-      const maxAttempts = 12;
+      const testX = parentX + distance * Math.cos(angle);
+      const testY = parentY + distance * Math.sin(angle);
       
-      let foundValidPosition = false;
-      
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const distance = minDistance + Math.random() * (maxDistance - minDistance);
-        const baseAngle = Math.random() * 2 * Math.PI;
-        const angle = baseAngle + (attempt * Math.PI / 6);
+      let hasCollision = false;
+      for (const nodeId in savedNodePositions) {
+        const pos = savedNodePositions[nodeId];
+        const dx = testX - pos.x;
+        const dy = testY - pos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
         
-        const testX = parentX + distance * Math.cos(angle);
-        const testY = parentY + distance * Math.sin(angle);
-        
-        let hasCollision = false;
-        for (const nodeId in savedNodePositions) {
-          const pos = savedNodePositions[nodeId];
-          const dx = testX - pos.x;
-          const dy = testY - pos.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          
-          if (dist < minNodeGap) {
-            hasCollision = true;
-            break;
-          }
-        }
-        
-        if (!hasCollision) {
-          for (const [, anchor] of hierarchicalAnchors.entries()) {
-            const dx = testX - anchor.x;
-            const dy = testY - anchor.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist < minNodeGap) {
-              hasCollision = true;
-              break;
-            }
-          }
-        }
-        
-        if (!hasCollision) {
-          initialX = testX;
-          initialY = testY;
-          foundValidPosition = true;
+        if (dist < minNodeGap) {
+          hasCollision = true;
           break;
         }
       }
       
-      if (!foundValidPosition) {
-        const fallbackDistance = maxDistance + 10;
-        const angle = Math.random() * 2 * Math.PI;
-        initialX = parentX + fallbackDistance * Math.cos(angle);
-        initialY = parentY + fallbackDistance * Math.sin(angle);
+      if (!hasCollision) {
+        initialX = testX;
+        initialY = testY;
+        foundValidPosition = true;
+        break;
       }
-      
-      // 즉시 위치 저장
-      saveNodePosition(id, initialX, initialY);
     }
+    
+    if (!foundValidPosition) {
+      const fallbackDistance = maxDistance + 10;
+      const angle = Math.random() * 2 * Math.PI;
+      initialX = parentX + fallbackDistance * Math.cos(angle);
+      initialY = parentY + fallbackDistance * Math.sin(angle);
+    }
+    
+    // 위치 저장
+    saveNodePosition(id, initialX, initialY);
     
     const newNode = { 
       id, 
@@ -350,11 +241,6 @@ export default function App() {
     };
     
     addNodeToGraph(newNode, newLink);
-    
-    if (addForm.isLocked) {
-      setLockedIds([...Array.from(lockedIds), id]);
-    }
-    
     closeAddNode();
   };
 
@@ -378,14 +264,9 @@ export default function App() {
       node.fy = node.y;
       node.vx = 0;
       node.vy = 0;
-    }
-    
-    if (lockedIds.has(node.id)) return;
-    
-    if (node.x != null && node.y != null) {
       scheduleSavePositions(node);
     }
-  }, [scheduleSavePositions, lockedIds]);
+  }, [scheduleSavePositions]);
 
   // === 키보드 단축키 ===
   useEffect(() => {
@@ -474,7 +355,6 @@ export default function App() {
           fgRef={fgRef}
           derivedData={derivedData}
           nodeStyles={nodeStyles}
-          lockedIds={lockedIds}
           selectedId={selectedId}
           onShowContextMenu={(x, y, nodeId) => {
             useUIStore.getState().showContextMenu(x, y, nodeId);
@@ -518,8 +398,6 @@ export default function App() {
             nodeId={contextMenu.nodeId}
             nodeStyles={nodeStyles}
             setStyle={setNodeStyle}
-            lockedIds={lockedIds}
-            toggleLock={toggleLock}
             onClose={hideContextMenu}
             customColorHistory={customColorHistory}
             addCustomColor={addCustomColor}

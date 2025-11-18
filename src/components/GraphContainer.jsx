@@ -1,8 +1,7 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useMeasure } from '../hooks/useMeasure';
-import { makeNodeCanvasObject, makeNodePointerAreaPaint, defaultLinkColor } from '../graph/renderers';
-import { makeCurvatureAccessor } from '../graph/layout';
+import { makeNodeCanvasObject, makeNodePointerAreaPaint, defaultLinkColor, makeCurvatureAccessor } from '../graph/renderers';
 
 /**
  * 그래프 뷰 컴포넌트 (기존 GraphView)
@@ -19,7 +18,6 @@ const GraphView = React.memo(function GraphView({
   fgRef,
   derivedData,
   nodeStyles,
-  lockedIds,
   selectedId,
   onShowContextMenu,
   onHideContextMenu,
@@ -78,8 +76,8 @@ const GraphView = React.memo(function GraphView({
   };
 
   const nodeCanvasObject = React.useMemo(() => 
-    makeNodeCanvasObject(nodeStyles, lockedIds, selectedId), 
-    [nodeStyles, lockedIds, selectedId]
+    makeNodeCanvasObject(nodeStyles, selectedId), 
+    [nodeStyles, selectedId]
   );
   
   const nodePointerAreaPaint = React.useMemo(() => 
@@ -184,7 +182,6 @@ export const GraphContainer = React.memo(function GraphContainer({
   fgRef,
   derivedData,
   nodeStyles,
-  lockedIds,
   selectedId,
   onShowContextMenu,
   onHideContextMenu,
@@ -212,7 +209,6 @@ export const GraphContainer = React.memo(function GraphContainer({
         fgRef={fgRef}
         derivedData={derivedData}
         nodeStyles={nodeStyles}
-        lockedIds={lockedIds}
         selectedId={selectedId}
         onShowContextMenu={onShowContextMenu}
         onHideContextMenu={onHideContextMenu}

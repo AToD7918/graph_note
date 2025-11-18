@@ -29,8 +29,6 @@ export function ContextMenu({
   nodeId, 
   nodeStyles, 
   setStyle, 
-  lockedIds, 
-  toggleLock, 
   onClose, 
   customColorHistory, 
   addCustomColor 
@@ -70,16 +68,6 @@ export function ContextMenu({
       <div className="text-xs uppercase opacity-70 px-1 pb-2">
         Node: {nodeId}
       </div>
-      
-      {/* Lock/Unlock 버튼 */}
-      <button 
-        className="w-full text-left px-2 py-1 rounded-lg hover:bg-white/10" 
-        onClick={()=>{ toggleLock(nodeId); onClose(); }}
-      >
-        {lockedIds.has(nodeId) ? 'Switch to Force (unlock)' : 'Switch to Radial (lock)'}
-      </button>
-      
-      <div className="h-px my-2 bg-white/10" />
       
       {/* Shape 선택 */}
       <div className="px-1 text-xs opacity-70">Shape</div>

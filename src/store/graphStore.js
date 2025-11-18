@@ -9,7 +9,6 @@ import { rebuildTagsIndex, loadTagsIndex, saveTagsIndex } from '../utils/tagHelp
  * 책임:
  * - 그래프 구조 (nodes, links) 관리
  * - 노드 스타일 (nodeStyles) 관리
- * - 자동 배치 고정 노드 (lockedIds) 관리
  * - 노드 위치 (savedNodePositions) 관리
  * - 태그 인덱스 관리
  * - 데이터 영속성 (localStorage/Remote)
@@ -56,7 +55,6 @@ export const useGraphStore = create((set, get) => {
       links: initial.links
     },
     nodeStyles: initial.nodeStyles || {},
-    lockedIds: new Set(initial.lockedIds || []),
     savedNodePositions: savedPositions,
     tagsIndex: mergedIndex,
 
@@ -122,25 +120,6 @@ export const useGraphStore = create((set, get) => {
       get().saveToStorage();
     },
 
-    // === 자동 배치 고정 액션 ===
-    toggleLock: (nodeId) => {
-      set((state) => {
-        const newLockedIds = new Set(state.lockedIds);
-        if (newLockedIds.has(nodeId)) {
-          newLockedIds.delete(nodeId);
-        } else {
-          newLockedIds.add(nodeId);
-        }
-        return { lockedIds: newLockedIds };
-      });
-      get().saveToStorage();
-    },
-
-    setLockedIds: (lockedIds) => {
-      set({ lockedIds: new Set(lockedIds) });
-      get().saveToStorage();
-    },
-
     // === 노드 위치 액션 ===
     saveNodePosition: (nodeId, x, y) => {
       set((state) => {
@@ -182,8 +161,7 @@ export const useGraphStore = create((set, get) => {
         state.storage.save({
           nodes: state.graph.nodes,
           links: state.graph.links,
-          nodeStyles: state.nodeStyles,
-          lockedIds: Array.from(state.lockedIds)
+          nodeStyles: state.nodeStyles
         });
       }
     },

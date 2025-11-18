@@ -116,26 +116,6 @@ export function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
               </div>
               <span className="text-base">⭕</span>
             </label>
-
-            <label className="flex items-center gap-2 cursor-pointer group p-1.5 rounded hover:bg-white/5 transition-colors">
-              <input 
-                type="checkbox" 
-                checked={form.isLocked || false}
-                onChange={(e)=>{
-                  setForm({...form, isLocked: e.target.checked});
-                }}
-                className="w-4 h-4 rounded border-2 border-white/30 checked:bg-teal-500 checked:border-teal-500 transition-colors"
-              />
-              <div className="flex-1">
-                <div className="text-xs font-medium text-white/90 group-hover:text-white transition-colors">
-                  Lock to Radial Layout
-                </div>
-                <div className="text-[10px] text-white/50 leading-tight">
-                  Fixed position • White border
-                </div>
-              </div>
-              <span className="text-base">🔒</span>
-            </label>
           </div>
         </div>
 
