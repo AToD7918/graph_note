@@ -247,21 +247,47 @@ export default function App() {
   // === 키보드 단축키 ===
   useEffect(() => {
     const onEsc = (e) => { 
-      if (e.key === 'Escape') { 
-        setSelectedId(null); 
-        hideContextMenu(); 
+      if (e.key === 'Escape') {
+        // 링크 프리뷰가 열려있으면 닫기
+        if (linkPreviewMenu.visible) {
+          setLinkPreviewMenu({ visible: false, x: 0, y: 0 });
+          setSelectedLink(null);
+        } else {
+          setSelectedId(null); 
+          hideContextMenu();
+        }
       } 
     };
+    
+    const onDelete = (e) => {
+      if (e.key === 'Delete' && linkPreviewMenu.visible && selectedLink) {
+        // 인라인으로 링크 삭제 처리
+        const sourceId = typeof selectedLink.source === 'object' ? selectedLink.source.id : selectedLink.source;
+        const targetId = typeof selectedLink.target === 'object' ? selectedLink.target.id : selectedLink.target;
+        
+        const sourceNode = graph.nodes.find(n => n.id === sourceId);
+        const targetNode = graph.nodes.find(n => n.id === targetId);
+        
+        if (window.confirm(`"${sourceNode?.title}" → "${targetNode?.title}" 링크를 삭제하시겠습니까?`)) {
+          deleteLink(sourceId, targetId);
+          setLinkPreviewMenu({ visible: false, x: 0, y: 0 });
+          setSelectedLink(null);
+        }
+      }
+    };
+    
     const onClick = () => hideContextMenu();
     
     window.addEventListener('keydown', onEsc);
+    window.addEventListener('keydown', onDelete);
     window.addEventListener('click', onClick);
     
     return () => { 
-      window.removeEventListener('keydown', onEsc); 
+      window.removeEventListener('keydown', onEsc);
+      window.removeEventListener('keydown', onDelete);
       window.removeEventListener('click', onClick); 
     };
-  }, [setSelectedId, hideContextMenu]);
+  }, [setSelectedId, hideContextMenu, linkPreviewMenu.visible, selectedLink, graph.nodes, deleteLink]);
 
   // === 줌/핏 키보드 단축키 ===
   useEffect(() => {

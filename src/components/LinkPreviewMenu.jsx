@@ -31,6 +31,14 @@ export function LinkPreviewMenu({
   const [isEditing, setIsEditing] = useState(false);
   const [description, setDescription] = useState(link?.description || '');
 
+  // link가 변경되면 description 업데이트
+  React.useEffect(() => {
+    if (link) {
+      setDescription(link.description || '');
+      setIsEditing(false);
+    }
+  }, [link]);
+
   // 메뉴가 화면 밖으로 나가지 않도록 위치 조정
   const menuWidth = 300;
   const menuHeight = isEditing ? 200 : 150;
