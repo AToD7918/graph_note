@@ -17,7 +17,7 @@ const STORE_NAME = 'notes';
 
 /**
  * IndexedDB 초기화
- * @returns {Promise<IDBDatabase>}
+ * @returns {Promise<IDBDatabase>} IndexedDB 데이터베이스 연결
  */
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -48,6 +48,8 @@ function openDB() {
  * 노트 상세 내용 저장
  * 
  * @param {string} nodeId - 노드 ID
+ * @param {string} detailedNote - 상세 노트 내용
+ * @returns {Promise<void>}
  * @param {string} detailedNote - 상세 노트 내용
  * @returns {Promise<void>}
  */

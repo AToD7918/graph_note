@@ -10,11 +10,13 @@
  * - 나중에 서버 연동 시 코드 변경 최소화
  */
 
+import { STORAGE_KEYS } from '../constants/storage';
+
 /**
  * 로컬 스토리지 어댑터
  * 
- * @param {string} key - localStorage에 저장할 키 이름 (기본: 'graph-notes-v1')
- * @returns {Object} 저장소 어댑터 객체 (load, save, clear 메서드 포함)
+ * @param {string} key - localStorage에 저장할 키 이름
+ * @returns {import('../types').StorageAdapter} 저장소 어댑터 객체
  * 
  * ? localStorage란?
  * - 브라우저에 데이터를 영구 저장하는 Web API
@@ -22,7 +24,7 @@
  * - 최대 5-10MB 저장 가능 (브라우저마다 다름)
  * - 문자열만 저장 가능 → JSON으로 변환 필요
  */
-export function createLocalStorageAdapter(key = 'graph-notes-v1') {
+export function createLocalStorageAdapter(key = STORAGE_KEYS.GRAPH_DATA) {
   return {
     // 어댑터 타입 식별자
     mode: 'local',
@@ -30,7 +32,7 @@ export function createLocalStorageAdapter(key = 'graph-notes-v1') {
     /**
      * 저장된 데이터 불러오기
      * 
-     * @returns {Object|null} 파싱된 그래프 데이터 또는 null (데이터 없음/에러 시)
+     * @returns {(import('../types').GraphData & {nodeStyles: import('../types').NodeStyles})|null} 파싱된 그래프 데이터 또는 null
      * 
      * 처리 과정:
      * 1. localStorage에서 문자열 데이터 가져오기

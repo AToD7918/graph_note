@@ -4,17 +4,18 @@
  * 데이터 구조:
  * - 노드 태그: { "Category1": ["tag1", "tag2"], "Category2": ["tag3"] }
  * - 글로벌 인덱스: { "Category1": ["tag1", "tag2", "tag3"], ... }
+ * @module utils/tagHelpers
  */
 
-const TAGS_INDEX_KEY = 'graph_tags_index';
+import { STORAGE_KEYS } from '../constants/storage';
 
 /**
  * 태그 인덱스를 localStorage에서 로드
- * @returns {Object.<string, string[]>} 카테고리별 태그 맵
+ * @returns {import('../types').TagsIndex} 카테고리별 태그 맵
  */
 export function loadTagsIndex() {
   try {
-    const stored = localStorage.getItem(TAGS_INDEX_KEY);
+    const stored = localStorage.getItem(STORAGE_KEYS.TAGS_INDEX);
     return stored ? JSON.parse(stored) : {};
   } catch (error) {
     console.error('태그 인덱스 로드 실패:', error);
@@ -24,11 +25,11 @@ export function loadTagsIndex() {
 
 /**
  * 태그 인덱스를 localStorage에 저장
- * @param {Object.<string, string[]>} index - 카테고리별 태그 맵
+ * @param {import('../types').TagsIndex} index - 카테고리별 태그 맵
  */
 export function saveTagsIndex(index) {
   try {
-    localStorage.setItem(TAGS_INDEX_KEY, JSON.stringify(index));
+    localStorage.setItem(STORAGE_KEYS.TAGS_INDEX, JSON.stringify(index));
   } catch (error) {
     console.error('태그 인덱스 저장 실패:', error);
   }
@@ -55,10 +56,10 @@ export function getAllCategories() {
 
 /**
  * 노드에 태그 추가 (계층 구조 자동 생성)
- * @param {Object.<string, string[]>} nodeTags - 노드의 현재 태그
- * @param {string} category - 카테고리명
+ * @param {import('../types').TagsIndex} nodeTags - 노드의 현재 태그
+ * @param {string} category - 카테고0리명
  * @param {string} tag - 추가할 태그 (계층 구조 포함 가능)
- * @returns {Object.<string, string[]>} 업데이트된 태그 객체
+ * @returns {import('../types').TagsIndex} 업데이트된 태그 객체
  */
 export function addTagToNode(nodeTags, category, tag) {
   const updated = { ...nodeTags };
@@ -90,10 +91,10 @@ export function addTagToNode(nodeTags, category, tag) {
 
 /**
  * 노드에서 태그 제거 (하위 태그도 함께 제거, 고아 부모 태그 정리)
- * @param {Object.<string, string[]>} nodeTags - 노드의 현재 태그
+ * @param {import('../types').TagsIndex} nodeTags - 노드의 현재 태그
  * @param {string} category - 카테고리명
  * @param {string} tag - 제거할 태그
- * @returns {Object.<string, string[]>} 업데이트된 태그 객체
+ * @returns {import('../types').TagsIndex} 업데이트된 태그 객체
  */
 export function removeTagFromNode(nodeTags, category, tag) {
   const updated = { ...nodeTags };

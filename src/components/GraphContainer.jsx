@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useMeasure } from '../hooks/useMeasure';
 import { makeNodeCanvasObject, makeNodePointerAreaPaint, defaultLinkColor, makeCurvatureAccessor } from '../graph/renderers';
+import { FORCE_GRAPH, NODE_DRAG, GRAPH_CONTAINER } from '../constants/ui';
 
 /**
  * 그래프 뷰 컴포넌트 (기존 GraphView)
@@ -29,7 +30,7 @@ const GraphView = React.memo(function GraphView({
   const onNodeHover = (n) => { 
     const el = containerRef.current; 
     if (!el) return; 
-    el.style.cursor = n ? 'pointer' : 'default'; 
+    el.style.cursor = n ? GRAPH_CONTAINER.CURSOR_POINTER : GRAPH_CONTAINER.CURSOR_DEFAULT; 
   };
   
   const handleDragEnd = useCallback((node) => {
@@ -108,12 +109,15 @@ const GraphView = React.memo(function GraphView({
   const onNodeDrag = useCallback((node) => {
     if (!fgRef.current || !containerRef.current) return;
     
-    if (node && node.fx != null && node.fy != null) {
+    // 드래그 시작 시 고정 해제 (자유롭게 움직이도록)
+    if (node && (node.fx != null || node.fy != null)) {
       node.fx = null;
       node.fy = null;
+      node.vx = 0;
+      node.vy = 0;
     }
     
-    const padding = 50;
+    const padding = NODE_DRAG.PADDING;
     const { width, height } = containerRef.current.getBoundingClientRect();
     
     const screenCoords = fgRef.current.graph2ScreenCoords(node.x, node.y);
@@ -125,11 +129,11 @@ const GraphView = React.memo(function GraphView({
     
     if (isOutOfBounds) {
       const now = Date.now();
-      if (onNodeDragRef.current && now - onNodeDragRef.current < 100) return;
+      if (onNodeDragRef.current && now - onNodeDragRef.current < NODE_DRAG.AUTO_ZOOM_THRESHOLD) return;
       onNodeDragRef.current = now;
       
       const currentZoom = fgRef.current.zoom();
-      const newZoom = currentZoom * 0.5;
+      const newZoom = currentZoom * NODE_DRAG.AUTO_ZOOM_SCALE;
       
       fgRef.current.zoom(newZoom, 100);
     }
@@ -144,15 +148,15 @@ const GraphView = React.memo(function GraphView({
       width={displayWidth}
       height={displayHeight}
       graphData={derivedData}
-      nodeRelSize={6}
-      backgroundColor="#0a0a0a"
+      nodeRelSize={FORCE_GRAPH.NODE_REL_SIZE}
+      backgroundColor={FORCE_GRAPH.BACKGROUND_COLOR}
       linkColor={defaultLinkColor}
-      linkDirectionalArrowLength={6}
-      linkDirectionalArrowRelPos={0.5}
+      linkDirectionalArrowLength={FORCE_GRAPH.ARROW_LENGTH}
+      linkDirectionalArrowRelPos={FORCE_GRAPH.ARROW_REL_POS}
       linkCurvature={linkCurvature}
-      cooldownTicks={0}
-      d3AlphaDecay={1}
-      d3VelocityDecay={1}
+      cooldownTicks={FORCE_GRAPH.COOLDOWN_TICKS}
+      d3AlphaDecay={FORCE_GRAPH.D3_ALPHA_DECAY}
+      d3VelocityDecay={FORCE_GRAPH.D3_VELOCITY_DECAY}
       enableNodeDrag={true}
       enableZoomInteraction={true}
       enablePanInteraction={true}

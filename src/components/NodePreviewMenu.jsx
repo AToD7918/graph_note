@@ -7,6 +7,13 @@ import React from 'react';
  * - 노드 제목
  * - 요약 미리보기
  * - "Open Note" 버튼 (노트 패널 열기)
+ * 
+ * @param {Object} props
+ * @param {import('../types').Node|null} props.selectedNote - 선택된 노드
+ * @param {import('../types').Position} props.position - 메뉴 위치
+ * @param {{width: number, height: number}} props.containerSize - 컨테이너 크기
+ * @param {function(): void} props.onClose - 닫기 핸들러
+ * @param {function(): void} props.onOpenNote - 노트 열기 핸들러
  */
 export function NodePreviewMenu({ 
   selectedNote, 

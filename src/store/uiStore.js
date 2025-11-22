@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { NOTE_PANEL, ZOOM, GRAPH_VIEW_MODE, COLOR_HISTORY } from '../constants/ui';
 
 /**
  * UI 상태 스토어
@@ -9,15 +10,17 @@ import { create } from 'zustand';
  * - 모달 상태
  * - 컨텍스트 메뉴 상태
  * - 미리보기 메뉴 상태
- * - 줌 레벨
+ * - 줄 레벨
  * - 그래프 뷰 모드
  * - 커스텀 색상 히스토리
+ * 
+ * @returns {import('../types').UIStore}
  */
 export const useUIStore = create((set) => ({
   // === 상태 ===
   selectedId: null,
   notePanelOpen: false,
-  panelWidth: Math.max(360, window.innerWidth * 0.4),
+  panelWidth: Math.max(NOTE_PANEL.MIN_WIDTH, window.innerWidth * NOTE_PANEL.DEFAULT_WIDTH_RATIO),
   
   showSettings: false,
   showAddNode: false,
@@ -35,8 +38,8 @@ export const useUIStore = create((set) => ({
     y: 0
   },
   
-  zoomLevel: 1.0,
-  graphViewMode: 'relationship', // 'relationship' | 'tag' | 'timeline'
+  zoomLevel: ZOOM.DEFAULT,
+  graphViewMode: GRAPH_VIEW_MODE.RELATIONSHIP,
   
   customColorHistory: [],
 
@@ -97,6 +100,6 @@ export const useUIStore = create((set) => ({
   addCustomColor: (color) => set((state) => {
     const filtered = state.customColorHistory.filter((c) => c !== color);
     const newHistory = [color, ...filtered];
-    return { customColorHistory: newHistory.slice(0, 8) };
+    return { customColorHistory: newHistory.slice(0, COLOR_HISTORY.MAX_COLORS) };
   })
 }));

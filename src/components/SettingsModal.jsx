@@ -14,7 +14,7 @@ import React from 'react';
  * @param {Function} setStorageMode - 저장소 모드 변경 함수
  * @param {Function} clearLocal - 로컬 캐시 삭제 함수
  */
-export function SettingsModal({ open, onClose, storageMode, setStorageMode, clearLocal }) {
+export const SettingsModal = React.memo(function SettingsModal({ open, onClose, storageMode, setStorageMode, clearLocal }) {
   if (!open) return null;
   
   return (
@@ -68,4 +68,4 @@ export function SettingsModal({ open, onClose, storageMode, setStorageMode, clea
       </div>
     </div>
   );
-}
+});

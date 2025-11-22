@@ -10,6 +10,15 @@ import { GraphViewSelector } from './GraphViewSelector';
  * - ZoomControls (좌측 하단 위)
  * - Settings 버튼 (좌하단)
  * - Add Node 버튼 (우하단)
+ * 
+ * @param {Object} props
+ * @param {React.RefObject<any>} props.fgRef - ForceGraph2D ref
+ * @param {number} props.zoomLevel - 현재 줌 레벨
+ * @param {function(number): void} props.onZoomChange - 줄 변경 핸들러
+ * @param {string} props.graphViewMode - 그래프 뷰 모드
+ * @param {function(string): void} props.onViewModeChange - 뷰 모드 변경 핸들러
+ * @param {function(): void} props.onOpenSettings - 설정 열기
+ * @param {function(): void} props.onOpenAddNode - 노드 추가 모달 열기
  */
 export function GraphControls({ 
   fgRef, 

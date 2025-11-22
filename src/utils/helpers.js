@@ -9,7 +9,7 @@
 /**
  * 객체나 ID를 ID 문자열로 변환
  * 
- * @param {Object|string} v - 노드 객체 또는 ID 문자열
+ * @param {import('../types').Node|string} v - 노드 객체 또는 ID 문자열
  * @returns {string} ID 문자열
  * 
  * ? 사용 이유:

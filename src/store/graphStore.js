@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { createLocalStorageAdapter, createRemoteAdapter } from '../adapters/storage';
 import { seedCore5 } from '../data/seedData';
 import { rebuildTagsIndex, loadTagsIndex, saveTagsIndex } from '../utils/tagHelpers';
+import { STORAGE_MODE, STORAGE_KEYS } from '../constants/storage';
+import { debounce } from '../utils/debounce';
 
 /**
  * 그래프 데이터 스토어
@@ -12,11 +14,13 @@ import { rebuildTagsIndex, loadTagsIndex, saveTagsIndex } from '../utils/tagHelp
  * - 노드 위치 (savedNodePositions) 관리
  * - 태그 인덱스 관리
  * - 데이터 영속성 (localStorage/Remote)
+ * 
+ * @returns {import('../types').GraphStore}
  */
 export const useGraphStore = create((set, get) => {
   // 저장소 초기화
-  const storageMode = 'local'; // 'local' | 'remote'
-  const storage = storageMode === 'local' 
+  const storageMode = STORAGE_MODE.LOCAL;
+  const storage = storageMode === STORAGE_MODE.LOCAL 
     ? createLocalStorageAdapter() 
     : createRemoteAdapter();
   
@@ -26,7 +30,7 @@ export const useGraphStore = create((set, get) => {
   // 노드 위치 로드
   let savedPositions = {};
   try {
-    const saved = localStorage.getItem('graphNodePositions');
+    const saved = localStorage.getItem(STORAGE_KEYS.NODE_POSITIONS);
     if (saved) {
       savedPositions = JSON.parse(saved);
     }
@@ -65,21 +69,22 @@ export const useGraphStore = create((set, get) => {
     },
 
     updateNode: (nodeId, patch) => {
-      set((state) => ({
-        graph: {
-          ...state.graph,
-          nodes: state.graph.nodes.map((n) =>
-            n.id === nodeId ? { ...n, ...patch } : n
-          )
-        }
-      }));
+      set((state) => {
+        const nodes = state.graph.nodes.map((n) =>
+          n.id === nodeId ? { ...n, ...patch } : n
+        );
+        
+        return {
+          graph: {
+            nodes,
+            links: state.graph.links
+          }
+        };
+      });
       
       // 태그가 업데이트되면 인덱스 재구축
       if (patch.tags) {
-        const updatedNodes = get().graph.nodes.map(n => 
-          n.id === nodeId ? { ...n, ...patch } : n
-        );
-        const updatedIndex = rebuildTagsIndex(updatedNodes);
+        const updatedIndex = rebuildTagsIndex(get().graph.nodes);
         set({ tagsIndex: updatedIndex });
         saveTagsIndex(updatedIndex);
       }
@@ -121,28 +126,46 @@ export const useGraphStore = create((set, get) => {
     },
 
     // === 노드 위치 액션 ===
+    _pendingPositions: {},
+    
     saveNodePosition: (nodeId, x, y) => {
-      set((state) => {
+      const state = get();
+      
+      // 즉시 localStorage에 저장 (UI 깜빡임 방지)
+      state._pendingPositions[nodeId] = { x, y };
+      
+      try {
+        const currentPositions = state.savedNodePositions;
         const newPositions = {
-          ...state.savedNodePositions,
-          [nodeId]: { x, y }
+          ...currentPositions,
+          ...state._pendingPositions
         };
-        
-        // localStorage에 저장
-        try {
-          localStorage.setItem('graphNodePositions', JSON.stringify(newPositions));
-        } catch (error) {
-          console.error('노드 위치 저장 실패:', error);
-        }
-        
-        return { savedNodePositions: newPositions };
-      });
+        localStorage.setItem(STORAGE_KEYS.NODE_POSITIONS, JSON.stringify(newPositions));
+      } catch (error) {
+        console.error('노드 위치 저장 실패:', error);
+      }
+      
+      // Zustand 상태는 debounce로 업데이트 (리렌더링 최소화)
+      get()._debouncedUpdatePositions();
     },
+    
+    _debouncedUpdatePositions: debounce(() => {
+      const state = get();
+      if (Object.keys(state._pendingPositions).length > 0) {
+        set((s) => ({
+          savedNodePositions: {
+            ...s.savedNodePositions,
+            ...s._pendingPositions
+          },
+          _pendingPositions: {}
+        }));
+      }
+    }, 500),
 
     clearNodePositions: () => {
       set({ savedNodePositions: {} });
       try {
-        localStorage.removeItem('graphNodePositions');
+        localStorage.removeItem(STORAGE_KEYS.NODE_POSITIONS);
       } catch (error) {
         console.error('노드 위치 삭제 실패:', error);
       }
@@ -155,7 +178,7 @@ export const useGraphStore = create((set, get) => {
     },
 
     // === 저장소 액션 ===
-    saveToStorage: () => {
+    saveToStorage: debounce(() => {
       const state = get();
       if (state.storage.save) {
         state.storage.save({
@@ -164,7 +187,7 @@ export const useGraphStore = create((set, get) => {
           nodeStyles: state.nodeStyles
         });
       }
-    },
+    }, 300),
 
     clearStorage: () => {
       const state = get();
@@ -174,7 +197,7 @@ export const useGraphStore = create((set, get) => {
     },
 
     setStorageMode: (mode) => {
-      const newStorage = mode === 'local' 
+      const newStorage = mode === STORAGE_MODE.LOCAL
         ? createLocalStorageAdapter() 
         : createRemoteAdapter();
       set({ storageMode: mode, storage: newStorage });

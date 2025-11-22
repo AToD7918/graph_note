@@ -20,7 +20,11 @@ import { addTagToIndex } from '../../utils/tagHelpers';
  * @param {Function} setPanelWidth - 패널 너비 설정 함수
  * @param {Object} tagsIndex - 전체 태그 인덱스 (자동완성용)
  */
-export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth, setPanelWidth, tagsIndex = {} }) {
+export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth, setPanelWidth, tagsIndex = {} }) {
+  // 제목 (title) - localStorage
+  const [localTitle, setLocalTitle] = useState('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  
   // 요약 (summary) - localStorage
   const [localSummary, setLocalSummary] = useState('');
   
@@ -90,6 +94,10 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
   // 선택된 노트 변경 시 데이터 로드
   useEffect(() => {
     if (selectedNote && isOpen) {
+      // 제목 로드
+      setLocalTitle(selectedNote.title || '');
+      setIsEditingTitle(false);
+      
       // 요약 로드 (localStorage에서 이미 로드됨)
       setLocalSummary(selectedNote.summary || '');
       
@@ -100,6 +108,36 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
       loadDetailedNote(selectedNote.id);
     }
   }, [selectedNote, isOpen]);
+
+  // 제목 변경 핸들러 (localStorage)
+  const handleTitleChange = (e) => {
+    setLocalTitle(e.target.value);
+  };
+
+  // 제목 수정 완료
+  const handleTitleBlur = () => {
+    const trimmedTitle = localTitle.trim();
+    if (trimmedTitle && trimmedTitle !== selectedNote.title) {
+      onChange({ title: trimmedTitle });
+      setSaveStatus('saved');
+      setLastSaved(new Date());
+    } else if (!trimmedTitle) {
+      // 빈 제목은 허용하지 않음
+      setLocalTitle(selectedNote.title);
+    }
+    setIsEditingTitle(false);
+  };
+
+  // 제목 수정 중 엔터 키
+  const handleTitleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleTitleBlur();
+    } else if (e.key === 'Escape') {
+      setLocalTitle(selectedNote.title);
+      setIsEditingTitle(false);
+    }
+  };
 
   // 요약 변경 핸들러 (localStorage)
   const handleSummaryChange = (e) => {
@@ -171,7 +209,27 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
         {/* 헤더 */}
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <div className="flex-1 min-w-0">
-            <div className="font-semibold truncate pr-3">{selectedNote.title}</div>
+            {isEditingTitle ? (
+              <input
+                type="text"
+                className="w-full font-semibold bg-transparent border-b border-teal-500 focus:outline-none text-white pr-3"
+                value={localTitle}
+                onChange={handleTitleChange}
+                onBlur={handleTitleBlur}
+                onKeyDown={handleTitleKeyDown}
+                autoFocus
+                placeholder="제목을 입력하세요"
+              />
+            ) : (
+              <div 
+                className="font-semibold truncate pr-3 cursor-pointer hover:text-teal-400 transition-colors group"
+                onClick={() => setIsEditingTitle(true)}
+                title="클릭하여 제목 수정"
+              >
+                {localTitle}
+                <span className="ml-2 text-xs opacity-0 group-hover:opacity-50 transition-opacity">✏️</span>
+              </div>
+            )}
           </div>
           <button 
             className="text-xs px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 transition-colors flex-shrink-0"
@@ -269,4 +327,4 @@ export function NotePanel({ selectedNote, onClose, onChange, isOpen, panelWidth,
       </div>
     </div>
   );
-}
+});

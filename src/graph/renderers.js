@@ -12,6 +12,16 @@
  * - strokeStyle: 테두리 색상
  */
 
+import { 
+  NODE_SIZE, 
+  NODE_COLORS, 
+  NODE_RENDERING, 
+  SELECTION_RING, 
+  GLOW_EFFECT,
+  LINK_CURVATURE,
+  HIT_AREA
+} from '../constants/nodeLayout';
+
 /**
  * 노드 그리기 함수 생성
  * 
@@ -30,85 +40,72 @@ export function makeNodeCanvasObject(nodeStyles, selectedId = null) {
     // 현재 노드가 선택된 노드인지 확인
     const isSelected = selectedId === node.id;
     
-    // ? 크기 계산
-    const sizeKey = style.size || 'm';  // 's', 'm', 'l'
-    const base = sizeKey === 's' ? 4 : (sizeKey === 'l' ? 12 : 7);  // 기본 크기
-    // globalScale: 줌 레벨 (확대하면 커짐)
-    // 노드 크기가 줌과 함께 확대/축소되도록 변경
-    const r = base;  // 반지름 (줌과 함께 스케일링)
+    // ? 크기 계산 (삼항 연산자 최적화)
+    const sizeKey = style.size || 'm';
+    const r = sizeKey === 'l' ? NODE_SIZE.LARGE : (sizeKey === 's' ? NODE_SIZE.SMALL : NODE_SIZE.MEDIUM);
     
     // ? 모양과 색상
-    const shape = style.shape || 'circle';  // 'circle' 또는 'square'
-    // 그룹별 기본 색상: Core=청록, Based On=초록, Cited By=보라
-    const fill = style.color || (
-      node.group === 1 ? '#22d3ee' : 
-      (node.group === 2 ? '#34d399' : '#a78bfa')
-    );
+    const shape = style.shape || 'circle';
+    const fill = style.color || (node.group === 1 ? NODE_COLORS.CORE : 
+                                  node.group === 2 ? NODE_COLORS.BASED_ON : NODE_COLORS.CITED_BY);
+    
+    const isCircle = shape === 'circle';
+    const s = r * 2.0; // 정사각형 크기 미리 계산
     
     // ? 글로우 효과 (강조 표시)
     if (style.glow) {
-      ctx.save();  // 현재 설정 저장
+      ctx.save();
       ctx.fillStyle = fill;
-      ctx.shadowColor = fill;  // 그림자 색상
-      ctx.globalAlpha = 1.0;   // 불투명도
-      ctx.shadowBlur = 32;     // 그림자 흐림 정도
+      ctx.shadowColor = fill;
+      ctx.globalAlpha = GLOW_EFFECT.OPACITY;
+      ctx.shadowBlur = GLOW_EFFECT.SHADOW_BLUR;
       
       // 1단계: 기본 모양 그리기
-      if (shape === 'circle') {
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);  // 원
-        ctx.fill();
+      ctx.beginPath();
+      if (isCircle) {
+        ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
       } else {
-        const s = r * 2.0;  // 정사각형 한 변 길이
-        ctx.beginPath();
-        ctx.rect(node.x - s / 2, node.y - s / 2, s, s);  // 중심 기준 정사각형
-        ctx.fill();
+        ctx.rect(node.x - s / 2, node.y - s / 2, s, s);
       }
+      ctx.fill();
       
       // 2단계: 더 큰 외곽 글로우
-      ctx.shadowBlur = 60;
-      ctx.globalAlpha = 0.35;  // 반투명
-      if (shape === 'circle') {
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, r * 1.2, 0, 2 * Math.PI);  // 20% 더 큼
-        ctx.fill();
+      ctx.shadowBlur = GLOW_EFFECT.SHADOW_BLUR_OUTER;
+      ctx.globalAlpha = GLOW_EFFECT.OPACITY_OUTER;
+      ctx.beginPath();
+      if (isCircle) {
+        ctx.arc(node.x, node.y, r * NODE_RENDERING.GLOW_SCALE, 0, 2 * Math.PI);
       } else {
-        const s2 = r * 2.4;
-        ctx.beginPath();
+        const s2 = r * NODE_RENDERING.GLOW_OUTER_SCALE;
         ctx.rect(node.x - s2 / 2, node.y - s2 / 2, s2, s2);
-        ctx.fill();
       }
-      ctx.restore();  // 설정 복원
+      ctx.fill();
+      ctx.restore();
     }
     
     // ? 노드 본체 그리기
     ctx.save();
     ctx.fillStyle = fill;
-    if (shape === 'circle') {
-      ctx.beginPath();
+    ctx.beginPath();
+    if (isCircle) {
       ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
-      ctx.fill();
     } else {
-      const s = r * 2.0;
-      ctx.beginPath();
       ctx.rect(node.x - s / 2, node.y - s / 2, s, s);
-      ctx.fill();
     }
+    ctx.fill();
     
     // ? Core 노드(Group 1)는 내부에 흰 원 표시
     if (node.group === 1) {
       ctx.fillStyle = '#ffffff';
-      const innerR = r * 0.4; // 내부 원 크기 (외부 원의 40%)
-      if (shape === 'circle') {
-        ctx.beginPath();
+      const innerR = r * NODE_RENDERING.INNER_CORE_RATIO;
+      ctx.beginPath();
+      if (isCircle) {
         ctx.arc(node.x, node.y, innerR, 0, 2 * Math.PI);
-        ctx.fill();
       } else {
         const innerS = innerR * 2.0;
-        ctx.beginPath();
         ctx.rect(node.x - innerS / 2, node.y - innerS / 2, innerS, innerS);
-        ctx.fill();
       }
+      ctx.fill();
     }
     
     ctx.restore();
@@ -116,38 +113,31 @@ export function makeNodeCanvasObject(nodeStyles, selectedId = null) {
     // ? 선택된 노드는 도넛 링으로 표시
     if (isSelected) {
       ctx.save();
-      ctx.strokeStyle = '#fbbf24'; // 황금색
-      ctx.lineWidth = 2.5; // 링 두께
-      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = SELECTION_RING.COLOR;
+      ctx.lineWidth = SELECTION_RING.LINE_WIDTH;
+      ctx.globalAlpha = SELECTION_RING.OPACITY;
       
-      if (shape === 'circle') {
-        // 원형 도넛 링
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, r * 1.6, 0, 2 * Math.PI);
-        ctx.stroke();
-        
-        // 이중 링 효과 (선택사항)
-        ctx.globalAlpha = 0.5;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, r * 1.9, 0, 2 * Math.PI);
-        ctx.stroke();
+      // 첫 번째 링
+      ctx.beginPath();
+      if (isCircle) {
+        ctx.arc(node.x, node.y, r * NODE_RENDERING.SELECTION_RING_RATIO, 0, 2 * Math.PI);
       } else {
-        // 사각 도넛 링
-        const s = r * 2.0;
         const ringSize = s * 1.6;
-        ctx.beginPath();
         ctx.rect(node.x - ringSize / 2, node.y - ringSize / 2, ringSize, ringSize);
-        ctx.stroke();
-        
-        // 이중 링 효과
-        ctx.globalAlpha = 0.5;
-        ctx.lineWidth = 1.5;
-        const ringSize2 = s * 1.9;
-        ctx.beginPath();
-        ctx.rect(node.x - ringSize2 / 2, node.y - ringSize2 / 2, ringSize2, ringSize2);
-        ctx.stroke();
       }
+      ctx.stroke();
+      
+      // 이중 링 효과
+      ctx.globalAlpha = isCircle ? SELECTION_RING.OUTER_OPACITY : 0.5;
+      ctx.lineWidth = isCircle ? SELECTION_RING.OUTER_LINE_WIDTH : 1.5;
+      ctx.beginPath();
+      if (isCircle) {
+        ctx.arc(node.x, node.y, r * NODE_RENDERING.SELECTION_OUTER_RING_RATIO, 0, 2 * Math.PI);
+      } else {
+        const ringSize2 = s * 1.9;
+        ctx.rect(node.x - ringSize2 / 2, node.y - ringSize2 / 2, ringSize2, ringSize2);
+      }
+      ctx.stroke();
       ctx.restore();
     }
     
@@ -205,16 +195,14 @@ export function makeNodePointerAreaPaint(nodeStyles) {
   return (node, color, ctx) => {
     const style = nodeStyles[node.id] || {};
     const sizeKey = style.size || 'm';
-    const base = sizeKey === 's' ? 4 : (sizeKey === 'l' ? 12 : 7);
-    const r = base;  // 클릭 영역도 줌과 함께 스케일링
-    const shape = style.shape || 'circle';
+    const r = sizeKey === 'l' ? NODE_SIZE.LARGE : (sizeKey === 's' ? NODE_SIZE.SMALL : NODE_SIZE.MEDIUM);
+    const isCircle = (style.shape || 'circle') === 'circle';
 
-    ctx.fillStyle = color; // 고유 픽셀색
-    // 선두께 영향 제거
-    ctx.lineWidth = 0;
-    ctx.shadowBlur = 0;
+    ctx.fillStyle = color;
+    ctx.lineWidth = HIT_AREA.LINE_WIDTH;
+    ctx.shadowBlur = HIT_AREA.SHADOW_BLUR;
 
-    if (shape === 'circle') {
+    if (isCircle) {
       ctx.beginPath();
       ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
       ctx.fill();
@@ -254,11 +242,11 @@ export function makeCurvatureAccessor(derivedData) {
     const dy = t.y - s.y;  // y 방향 거리
     const segLen = Math.hypot(dx, dy);  // 선분 길이 √(dx²+dy²)
     
-    // 선분이 너무 짧으면 곡선 불필요
-    if (segLen < 2) return 0;
+    // 선분이 너무 짧으면 곱선 불필요
+    if (segLen < LINK_CURVATURE.MIN_SEGMENT_LENGTH) return 0;
     
     // 임계값 설정
-    const thresh = 18;  // 노드와의 최소 거리 (픽셀)
+    const thresh = LINK_CURVATURE.NODE_THRESHOLD;
     const thresh2 = thresh * thresh;  // 제곱 (비교용, sqrt 연산 생략)
     
     /**
@@ -302,22 +290,23 @@ export function makeCurvatureAccessor(derivedData) {
       // 노드에서 선분까지의 거리 계산
       const { d2, b } = dist2AndParam(nx, ny);
       
-      // 선분 양 끝 18% 구간은 무시 (화살표 근처)
-      if (b <= 0.18 || b >= 0.82) continue;
+      // 선분 양 끝 구간은 무시 (화살표 근처)
+      const edgeIgnore = LINK_CURVATURE.EDGE_IGNORE_RATIO;
+      if (b <= edgeIgnore || b >= (1 - edgeIgnore)) continue;
       
       // 충돌 감지: 노드가 선분과 가까움!
       if (d2 < thresh2) {
         // 외적(cross product)으로 방향 결정
-        // - 양수: 왼쪽으로 휘어짐
-        // - 음수: 오른쪽으로 휘어짐
+        // - 양수: 왼쪽으로 휴어짐
+        // - 음수: 오른쪽으로 휴어짐
         const cross = dx * (ny - s.y) - dy * (nx - s.x);
         const sign = cross >= 0 ? 1 : -1;
         
-        // 곡률 강도 계산: 가까울수록 많이 휨
+        // 곱률 강도 계산: 가까울수록 많이 휘
         const tight = Math.max(0, 1 - Math.sqrt(d2) / thresh);
         
-        // 최종 곡률: 기본 0.10 + 거리 기반 보정 0.06
-        return (0.10 + 0.06 * tight) * sign;
+        // 최종 곱률
+        return (LINK_CURVATURE.BASE_CURVATURE + LINK_CURVATURE.DISTANCE_CURVATURE * tight) * sign;
       }
     }
     

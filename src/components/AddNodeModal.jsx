@@ -15,7 +15,7 @@ import React from 'react';
  * @param {Object} form - 폼 상태 { title, group, linkType, connectTo }
  * @param {Function} setForm - 폼 상태 변경 함수
  */
-export function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
+export const AddNodeModal = React.memo(function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
   if (!open) return null;
   
   return (
@@ -137,4 +137,4 @@ export function AddNodeModal({ open, onClose, graph, addNode, form, setForm }) {
       </div>
     </div>
   );
-}
+});
