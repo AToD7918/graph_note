@@ -13,7 +13,7 @@ import { NotePanel } from './components/NotePanel/NotePanel';
 import { SettingsModal } from './components/SettingsModal';
 import { AddNodeModal } from './components/AddNodeModal';
 import { ContextMenu } from './components/contextMenu';
-import LinkCreationModal from './components/modals/LinkCreationModal';
+import { LinkPreviewMenu } from './components/LinkPreviewMenu';
 
 /**
  * Graph-First Paper Notes (V2.0, Zustand + 컴포넌트 완전 분리)
@@ -58,6 +58,7 @@ export default function App() {
     setStorageMode,
     storageMode,
     addLink,
+    updateLink,
     deleteLink
   } = useGraphStore();
 
@@ -105,9 +106,9 @@ export default function App() {
     isCore: false
   });
 
-  // === 링크 생성 모달 상태 ===
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [linkModalData, setLinkModalData] = useState({ sourceId: null, targetId: null });
+  // === 링크 프리뷰 메뉴 상태 ===
+  const [linkPreviewMenu, setLinkPreviewMenu] = useState({ visible: false, x: 0, y: 0 });
+  const [selectedLink, setSelectedLink] = useState(null);
 
   // === IndexedDB 초기화 (Seed Notes) ===
   useEffect(() => {
@@ -321,7 +322,7 @@ export default function App() {
     useUIStore.getState().showContextMenu(x, y, nodeId);
   }, []);
 
-  // === 링크 생성 핸들러 ===
+  // === 링크 생성 핸들러 (모달 없이 즉시 생성) ===
   const handleNodeClickWithShift = useCallback((nodeId, x, y, shiftKey) => {
     if (shiftKey) {
       // Shift 키가 눌린 상태
@@ -334,9 +335,14 @@ export default function App() {
           // 같은 노드 클릭 시 취소
           cancelLinkCreation();
         } else {
-          // 다른 노드 클릭 시 링크 생성 모달 표시
-          setLinkModalData({ sourceId: sourceLinkNode, targetId: nodeId });
-          setShowLinkModal(true);
+          // 다른 노드 클릭 시 즉시 based-on 링크 생성
+          const success = addLink(sourceLinkNode, nodeId, 'based-on', '');
+          if (success) {
+            cancelLinkCreation();
+          } else {
+            alert('이미 존재하는 링크입니다.');
+            cancelLinkCreation();
+          }
         }
       }
     } else {
@@ -347,26 +353,7 @@ export default function App() {
       }
       handleNodeClick(nodeId, x, y);
     }
-  }, [linkCreationMode, sourceLinkNode, startLinkCreation, cancelLinkCreation, handleNodeClick]);
-
-  // === 링크 생성 확인 핸들러 ===
-  const handleConfirmLink = useCallback((type, description) => {
-    const success = addLink(linkModalData.sourceId, linkModalData.targetId, type, description);
-    if (success) {
-      setShowLinkModal(false);
-      cancelLinkCreation();
-      setLinkModalData({ sourceId: null, targetId: null });
-    } else {
-      alert('이미 존재하는 링크입니다.');
-    }
-  }, [linkModalData, addLink, cancelLinkCreation]);
-
-  // === 링크 생성 모달 닫기 핸들러 ===
-  const handleCloseLinkModal = useCallback(() => {
-    setShowLinkModal(false);
-    cancelLinkCreation();
-    setLinkModalData({ sourceId: null, targetId: null });
-  }, [cancelLinkCreation]);
+  }, [linkCreationMode, sourceLinkNode, startLinkCreation, cancelLinkCreation, handleNodeClick, addLink]);
 
   // === Shift 키 해제 감지 ===
   useEffect(() => {
@@ -382,37 +369,49 @@ export default function App() {
 
   // === 링크 클릭/우클릭 핸들러 ===
   useEffect(() => {
-    // 링크 우클릭 핸들러 (삭제)
-    window.onLinkRightClickHandler = (link) => {
-      const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-      const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-      
-      const sourceNode = graph.nodes.find(n => n.id === sourceId);
-      const targetNode = graph.nodes.find(n => n.id === targetId);
-      
-      if (window.confirm(`"${sourceNode?.title}" → "${targetNode?.title}" 링크를 삭제하시겠습니까?`)) {
-        deleteLink(sourceId, targetId);
-      }
+    // 링크 우클릭 핸들러 (프리뷰 메뉴 표시)
+    window.onLinkRightClickHandler = (link, evt) => {
+      const x = evt?.clientX ?? 0;
+      const y = evt?.clientY ?? 0;
+      setSelectedLink(link);
+      setLinkPreviewMenu({ visible: true, x, y });
     };
 
-    // 링크 클릭 핸들러 (설명 표시)
-    window.onLinkClickHandler = (link) => {
-      const linkData = graph.links.find(l => {
-        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-        return l.source === sourceId && l.target === targetId;
-      });
-      
-      if (linkData?.description) {
-        alert(`링크 설명:\n${linkData.description}`);
-      }
+    // 링크 클릭 핸들러 (프리뷰 메뉴 표시)
+    window.onLinkClickHandler = (link, evt) => {
+      const x = evt?.clientX ?? 0;
+      const y = evt?.clientY ?? 0;
+      setSelectedLink(link);
+      setLinkPreviewMenu({ visible: true, x, y });
     };
 
     return () => {
       window.onLinkRightClickHandler = null;
       window.onLinkClickHandler = null;
     };
-  }, [graph, deleteLink]);
+  }, []);
+
+  // === 링크 저장 핸들러 ===
+  const handleSaveLink = useCallback((sourceId, targetId, description) => {
+    updateLink(sourceId, targetId, { description });
+  }, [updateLink]);
+
+  // === 링크 삭제 핸들러 ===
+  const handleDeleteLink = useCallback(() => {
+    if (!selectedLink) return;
+    
+    const sourceId = typeof selectedLink.source === 'object' ? selectedLink.source.id : selectedLink.source;
+    const targetId = typeof selectedLink.target === 'object' ? selectedLink.target.id : selectedLink.target;
+    
+    const sourceNode = graph.nodes.find(n => n.id === sourceId);
+    const targetNode = graph.nodes.find(n => n.id === targetId);
+    
+    if (window.confirm(`"${sourceNode?.title}" → "${targetNode?.title}" 링크를 삭제하시겠습니까?`)) {
+      deleteLink(sourceId, targetId);
+      setLinkPreviewMenu({ visible: false, x: 0, y: 0 });
+      setSelectedLink(null);
+    }
+  }, [selectedLink, deleteLink, graph.nodes]);
 
   /******************** 렌더 ********************/
   return (
@@ -506,14 +505,30 @@ export default function App() {
         setForm={setAddForm} 
       />
 
-      {/* 링크 생성 모달 */}
-      <LinkCreationModal
-        isOpen={showLinkModal}
-        onClose={handleCloseLinkModal}
-        onConfirm={handleConfirmLink}
-        sourceNodeTitle={graph.nodes.find(n => n.id === linkModalData.sourceId)?.title || ''}
-        targetNodeTitle={graph.nodes.find(n => n.id === linkModalData.targetId)?.title || ''}
-      />
+      {/* 링크 프리뷰 메뉴 */}
+      {linkPreviewMenu.visible && (
+        <LinkPreviewMenu
+          link={selectedLink}
+          position={linkPreviewMenu}
+          containerSize={{ width: window.innerWidth, height: window.innerHeight }}
+          onClose={() => {
+            setLinkPreviewMenu({ visible: false, x: 0, y: 0 });
+            setSelectedLink(null);
+          }}
+          onSave={handleSaveLink}
+          onDelete={handleDeleteLink}
+          sourceNodeTitle={(() => {
+            if (!selectedLink) return '';
+            const sourceId = typeof selectedLink.source === 'object' ? selectedLink.source.id : selectedLink.source;
+            return graph.nodes.find(n => n.id === sourceId)?.title || '';
+          })()}
+          targetNodeTitle={(() => {
+            if (!selectedLink) return '';
+            const targetId = typeof selectedLink.target === 'object' ? selectedLink.target.id : selectedLink.target;
+            return graph.nodes.find(n => n.id === targetId)?.title || '';
+          })()}
+        />
+      )}
 
       {/* 링크 생성 모드 UI 표시 */}
       {linkCreationMode && (

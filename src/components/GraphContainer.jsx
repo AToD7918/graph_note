@@ -174,17 +174,17 @@ const GraphView = React.memo(function GraphView({
       nodePointerAreaPaint={nodePointerAreaPaint}
       onNodeDrag={onNodeDrag}
       onNodeDragEnd={handleDragEnd}
-      onLinkClick={(link) => {
+      onLinkClick={(link, evt) => {
         // 링크 클릭 핸들러 - 상위 컴포넌트로 전달
         if (window.onLinkClickHandler) {
-          window.onLinkClickHandler(link);
+          window.onLinkClickHandler(link, evt);
         }
       }}
       onLinkRightClick={(link, evt) => {
         // 링크 우클릭 핸들러 - 상위 컴포넌트로 전달
         evt?.preventDefault?.();
         if (window.onLinkRightClickHandler) {
-          window.onLinkRightClickHandler(link);
+          window.onLinkRightClickHandler(link, evt);
         }
       }}
     />

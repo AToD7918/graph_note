@@ -121,9 +121,10 @@ export const useGraphStore = create((set, get) => {
      * @param {string} targetId - 타겟 노드 ID
      * @param {string} type - 링크 타입 ('based-on' | 'cited-by')
      * @param {string} description - 링크 설명 (선택사항)
+     * @param {string} title - 링크 제목 (선택사항)
      * @returns {boolean} 성공 여부
      */
-    addLink: (sourceId, targetId, type, description = '') => {
+    addLink: (sourceId, targetId, type, description = '', title = '') => {
       const state = get();
       
       // 중복 링크 체크
@@ -141,6 +142,7 @@ export const useGraphStore = create((set, get) => {
         source: sourceId,
         target: targetId,
         type,
+        title,
         description
       };
       
@@ -153,6 +155,31 @@ export const useGraphStore = create((set, get) => {
       
       get().saveToStorage();
       return true;
+    },
+
+    /**
+     * 링크 업데이트
+     * @param {string} sourceId - 소스 노드 ID
+     * @param {string} targetId - 타겟 노드 ID
+     * @param {Object} patch - 업데이트할 필드 { title?, description? }
+     */
+    updateLink: (sourceId, targetId, patch) => {
+      set((state) => {
+        const links = state.graph.links.map((link) =>
+          link.source === sourceId && link.target === targetId
+            ? { ...link, ...patch }
+            : link
+        );
+        
+        return {
+          graph: {
+            nodes: state.graph.nodes,
+            links
+          }
+        };
+      });
+      
+      get().saveToStorage();
     },
 
     /**
