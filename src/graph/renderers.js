@@ -183,9 +183,17 @@ export function makeNodeCanvasObject(nodeStyles, selectedId = null) {
  * 색상 구분:
  * - Based On (선행 연구): 보라색 (indigo)
  * - Cited By (후속 연구): 청록색 (teal)
+ * - description이 있으면 더 진한 색상 표시
  */
-export const defaultLinkColor = (l) => 
-  l.type === 'based-on' ? 'rgba(165,180,252,0.9)' : 'rgba(94,234,212,0.9)';
+export const defaultLinkColor = (l) => {
+  const hasDescription = l.description && l.description.trim() !== '';
+  
+  if (l.type === 'based-on') {
+    return hasDescription ? 'rgba(129,140,248,1)' : 'rgba(165,180,252,0.9)';
+  } else {
+    return hasDescription ? 'rgba(45,212,191,1)' : 'rgba(94,234,212,0.9)';
+  }
+};
 
 /**
  * 클릭 판정용 영역을 그리는 함수

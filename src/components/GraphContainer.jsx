@@ -41,10 +41,14 @@ const GraphView = React.memo(function GraphView({
 
   const onNodeClick = (node, evt) => { 
     if (!node) return;
+    
+    // Shift 키 감지하여 링크 생성 모드 처리는 상위 컴포넌트에서 수행
     const rect = containerRef.current?.getBoundingClientRect();
     const x = (evt?.clientX ?? 0) - (rect?.left ?? 0);
     const y = (evt?.clientY ?? 0) - (rect?.top ?? 0);
-    onNodeClickWithPosition(node.id, x, y);
+    
+    // Shift 키 정보를 포함하여 이벤트 전달
+    onNodeClickWithPosition(node.id, x, y, evt?.shiftKey ?? false);
     onHideContextMenu(); 
   };
 
@@ -170,6 +174,19 @@ const GraphView = React.memo(function GraphView({
       nodePointerAreaPaint={nodePointerAreaPaint}
       onNodeDrag={onNodeDrag}
       onNodeDragEnd={handleDragEnd}
+      onLinkClick={(link) => {
+        // 링크 클릭 핸들러 - 상위 컴포넌트로 전달
+        if (window.onLinkClickHandler) {
+          window.onLinkClickHandler(link);
+        }
+      }}
+      onLinkRightClick={(link, evt) => {
+        // 링크 우클릭 핸들러 - 상위 컴포넌트로 전달
+        evt?.preventDefault?.();
+        if (window.onLinkRightClickHandler) {
+          window.onLinkRightClickHandler(link);
+        }
+      }}
     />
   );
 });

@@ -42,6 +42,10 @@ export const useUIStore = create((set) => ({
   graphViewMode: GRAPH_VIEW_MODE.RELATIONSHIP,
   
   customColorHistory: [],
+  
+  // === 링크 생성 상태 ===
+  linkCreationMode: false,
+  sourceLinkNode: null,
 
   // === 선택/패널 액션 ===
   setSelectedId: (id) => set({ selectedId: id }),
@@ -101,5 +105,16 @@ export const useUIStore = create((set) => ({
     const filtered = state.customColorHistory.filter((c) => c !== color);
     const newHistory = [color, ...filtered];
     return { customColorHistory: newHistory.slice(0, COLOR_HISTORY.MAX_COLORS) };
+  }),
+
+  // === 링크 생성 액션 ===
+  startLinkCreation: (nodeId) => set({ 
+    linkCreationMode: true, 
+    sourceLinkNode: nodeId 
+  }),
+  
+  cancelLinkCreation: () => set({ 
+    linkCreationMode: false, 
+    sourceLinkNode: null 
   })
 }));

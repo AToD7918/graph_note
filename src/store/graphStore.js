@@ -114,6 +114,64 @@ export const useGraphStore = create((set, get) => {
       get().saveToStorage();
     },
 
+    // === 링크 관리 액션 ===
+    /**
+     * 새 링크 추가
+     * @param {string} sourceId - 소스 노드 ID
+     * @param {string} targetId - 타겟 노드 ID
+     * @param {string} type - 링크 타입 ('based-on' | 'cited-by')
+     * @param {string} description - 링크 설명 (선택사항)
+     * @returns {boolean} 성공 여부
+     */
+    addLink: (sourceId, targetId, type, description = '') => {
+      const state = get();
+      
+      // 중복 링크 체크
+      const isDuplicate = state.graph.links.some(
+        (link) => link.source === sourceId && link.target === targetId
+      );
+      
+      if (isDuplicate) {
+        console.warn('이미 존재하는 링크입니다.');
+        return false;
+      }
+      
+      // 새 링크 생성
+      const newLink = {
+        source: sourceId,
+        target: targetId,
+        type,
+        description
+      };
+      
+      set((s) => ({
+        graph: {
+          nodes: s.graph.nodes,
+          links: [...s.graph.links, newLink]
+        }
+      }));
+      
+      get().saveToStorage();
+      return true;
+    },
+
+    /**
+     * 링크 삭제
+     * @param {string} sourceId - 소스 노드 ID
+     * @param {string} targetId - 타겟 노드 ID
+     */
+    deleteLink: (sourceId, targetId) => {
+      set((state) => ({
+        graph: {
+          nodes: state.graph.nodes,
+          links: state.graph.links.filter(
+            (link) => !(link.source === sourceId && link.target === targetId)
+          )
+        }
+      }));
+      get().saveToStorage();
+    },
+
     // === 노드 스타일 액션 ===
     setNodeStyle: (nodeId, patch) => {
       set((state) => ({

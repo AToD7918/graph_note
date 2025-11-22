@@ -13,6 +13,7 @@ import { NotePanel } from './components/NotePanel/NotePanel';
 import { SettingsModal } from './components/SettingsModal';
 import { AddNodeModal } from './components/AddNodeModal';
 import { ContextMenu } from './components/contextMenu';
+import LinkCreationModal from './components/modals/LinkCreationModal';
 
 /**
  * Graph-First Paper Notes (V2.0, Zustand + 컴포넌트 완전 분리)
@@ -55,7 +56,9 @@ export default function App() {
     saveNodePosition,
     clearStorage,
     setStorageMode,
-    storageMode
+    storageMode,
+    addLink,
+    deleteLink
   } = useGraphStore();
 
   const {
@@ -69,6 +72,8 @@ export default function App() {
     zoomLevel,
     graphViewMode,
     customColorHistory,
+    linkCreationMode,
+    sourceLinkNode,
     setSelectedId,
     openNotePanel,
     closeNotePanel,
@@ -82,7 +87,9 @@ export default function App() {
     handleNodeClick,
     setZoomLevel,
     setGraphViewMode,
-    addCustomColor
+    addCustomColor,
+    startLinkCreation,
+    cancelLinkCreation
   } = useUIStore();
 
   // === Refs ===
@@ -97,6 +104,10 @@ export default function App() {
     connectTo: 'Core', 
     isCore: false
   });
+
+  // === 링크 생성 모달 상태 ===
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkModalData, setLinkModalData] = useState({ sourceId: null, targetId: null });
 
   // === IndexedDB 초기화 (Seed Notes) ===
   useEffect(() => {
@@ -310,6 +321,99 @@ export default function App() {
     useUIStore.getState().showContextMenu(x, y, nodeId);
   }, []);
 
+  // === 링크 생성 핸들러 ===
+  const handleNodeClickWithShift = useCallback((nodeId, x, y, shiftKey) => {
+    if (shiftKey) {
+      // Shift 키가 눌린 상태
+      if (!linkCreationMode) {
+        // 링크 생성 모드 시작 (첫 번째 클릭)
+        startLinkCreation(nodeId);
+      } else {
+        // 링크 생성 모드 진행 중 (두 번째 클릭)
+        if (nodeId === sourceLinkNode) {
+          // 같은 노드 클릭 시 취소
+          cancelLinkCreation();
+        } else {
+          // 다른 노드 클릭 시 링크 생성 모달 표시
+          setLinkModalData({ sourceId: sourceLinkNode, targetId: nodeId });
+          setShowLinkModal(true);
+        }
+      }
+    } else {
+      // Shift 키가 없으면 기본 동작
+      if (linkCreationMode) {
+        // 링크 생성 모드 취소
+        cancelLinkCreation();
+      }
+      handleNodeClick(nodeId, x, y);
+    }
+  }, [linkCreationMode, sourceLinkNode, startLinkCreation, cancelLinkCreation, handleNodeClick]);
+
+  // === 링크 생성 확인 핸들러 ===
+  const handleConfirmLink = useCallback((type, description) => {
+    const success = addLink(linkModalData.sourceId, linkModalData.targetId, type, description);
+    if (success) {
+      setShowLinkModal(false);
+      cancelLinkCreation();
+      setLinkModalData({ sourceId: null, targetId: null });
+    } else {
+      alert('이미 존재하는 링크입니다.');
+    }
+  }, [linkModalData, addLink, cancelLinkCreation]);
+
+  // === 링크 생성 모달 닫기 핸들러 ===
+  const handleCloseLinkModal = useCallback(() => {
+    setShowLinkModal(false);
+    cancelLinkCreation();
+    setLinkModalData({ sourceId: null, targetId: null });
+  }, [cancelLinkCreation]);
+
+  // === Shift 키 해제 감지 ===
+  useEffect(() => {
+    const handleKeyUp = (e) => {
+      if (e.key === 'Shift' && linkCreationMode) {
+        cancelLinkCreation();
+      }
+    };
+    
+    window.addEventListener('keyup', handleKeyUp);
+    return () => window.removeEventListener('keyup', handleKeyUp);
+  }, [linkCreationMode, cancelLinkCreation]);
+
+  // === 링크 클릭/우클릭 핸들러 ===
+  useEffect(() => {
+    // 링크 우클릭 핸들러 (삭제)
+    window.onLinkRightClickHandler = (link) => {
+      const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+      const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+      
+      const sourceNode = graph.nodes.find(n => n.id === sourceId);
+      const targetNode = graph.nodes.find(n => n.id === targetId);
+      
+      if (window.confirm(`"${sourceNode?.title}" → "${targetNode?.title}" 링크를 삭제하시겠습니까?`)) {
+        deleteLink(sourceId, targetId);
+      }
+    };
+
+    // 링크 클릭 핸들러 (설명 표시)
+    window.onLinkClickHandler = (link) => {
+      const linkData = graph.links.find(l => {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+        return l.source === sourceId && l.target === targetId;
+      });
+      
+      if (linkData?.description) {
+        alert(`링크 설명:\n${linkData.description}`);
+      }
+    };
+
+    return () => {
+      window.onLinkRightClickHandler = null;
+      window.onLinkClickHandler = null;
+    };
+  }, [graph, deleteLink]);
+
   /******************** 렌더 ********************/
   return (
     <div className="w-full h-screen bg-[#0a0a0a] text-white relative overflow-hidden">
@@ -324,10 +428,10 @@ export default function App() {
           fgRef={fgRef}
           derivedData={derivedData}
           nodeStyles={nodeStyles}
-          selectedId={selectedId}
+          selectedId={linkCreationMode ? sourceLinkNode : selectedId}
           onShowContextMenu={handleShowContextMenu}
           onHideContextMenu={hideContextMenu}
-          onNodeClickWithPosition={handleNodeClick}
+          onNodeClickWithPosition={handleNodeClickWithShift}
           closePreviewMenu={hidePreviewMenu}
           onZoomChange={setZoomLevel}
           onNodeDragEnd={handleNodeDragEnd}
@@ -401,6 +505,27 @@ export default function App() {
         form={addForm} 
         setForm={setAddForm} 
       />
+
+      {/* 링크 생성 모달 */}
+      <LinkCreationModal
+        isOpen={showLinkModal}
+        onClose={handleCloseLinkModal}
+        onConfirm={handleConfirmLink}
+        sourceNodeTitle={graph.nodes.find(n => n.id === linkModalData.sourceId)?.title || ''}
+        targetNodeTitle={graph.nodes.find(n => n.id === linkModalData.targetId)?.title || ''}
+      />
+
+      {/* 링크 생성 모드 UI 표시 */}
+      {linkCreationMode && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          <p className="text-sm font-medium">
+            링크 생성 모드: "{graph.nodes.find(n => n.id === sourceLinkNode)?.title}" 선택됨
+          </p>
+          <p className="text-xs mt-1 opacity-90">
+            다른 노드를 Shift+클릭하여 링크를 생성하세요. ESC로 취소
+          </p>
+        </div>
+      )}
 
       {/* 기본 무결성 점검 */}
       <RuntimeAsserts data={derivedData} />
