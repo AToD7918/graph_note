@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { loadNoteDetail, saveNoteDetail } from '../../adapters/noteStorage';
+import { loadNoteDetail, saveNoteDetail, loadBlockContent, saveBlockContent } from '../../adapters/noteStorage';
 import { TagInput } from './Tag/TagInput';
 import { addTagToIndex } from '../../utils/tagHelpers';
+import BlockEditor from '../BlockEditor/BlockEditor';
+import ErrorBoundary from '../BlockEditor/ErrorBoundary';
+import { migrateTextToBlocks, detectNoteVersion } from '../../utils/blockMigration';
+import { createEmptyNoteContent } from '../../utils/blockUtils';
 
 /**
  * 📝 노트 패널 컴포넌트
@@ -31,8 +35,9 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
   // 태그 (tags) - localStorage
   const [localTags, setLocalTags] = useState({});
   
-  // 상세 노트 (detailedNote) - IndexedDB
-  const [detailedNote, setDetailedNote] = useState('');
+  // 상세 노트 (blocks) - IndexedDB
+  const [blocks, setBlocks] = useState([]);
+  const [noteFormat, setNoteFormat] = useState('blocks'); // 'legacy' | 'blocks'
   
   // 로딩 상태
   const [isLoading, setIsLoading] = useState(false);
@@ -76,16 +81,43 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
     };
   }, [isResizing, setPanelWidth]);
 
-  // IndexedDB에서 상세 노트 로드
+  // IndexedDB에서 상세 노트 로드 (자동 마이그레이션 포함)
   const loadDetailedNote = async (nodeId) => {
     setIsLoading(true);
     try {
-      const content = await loadNoteDetail(nodeId);
-      setDetailedNote(content || '');
-      console.log(`📖 상세 노트 로드: ${nodeId}`);
+      // Try loading block content first
+      const blockContent = await loadBlockContent(nodeId);
+      
+      if (blockContent && blockContent.blocks) {
+        // New block format
+        setBlocks(blockContent.blocks);
+        setNoteFormat('blocks');
+        console.log(`📖 블록 노트 로드: ${nodeId}`);
+      } else {
+        // Try loading legacy text content
+        const legacyContent = await loadNoteDetail(nodeId);
+        
+        if (legacyContent && legacyContent.trim()) {
+          // Migrate legacy text to blocks
+          const migratedContent = migrateTextToBlocks({ detailedNote: legacyContent });
+          setBlocks(migratedContent.blocks);
+          setNoteFormat('blocks');
+          
+          // Auto-save migrated content
+          await saveBlockContent(nodeId, migratedContent);
+          console.log(`📖 레거시 노트 마이그레이션: ${nodeId}`);
+        } else {
+          // Empty note
+          const emptyContent = createEmptyNoteContent();
+          setBlocks(emptyContent.blocks);
+          setNoteFormat('blocks');
+        }
+      }
     } catch (error) {
       console.error('상세 노트 로드 실패:', error);
-      setDetailedNote('');
+      const emptyContent = createEmptyNoteContent();
+      setBlocks(emptyContent.blocks);
+      setNoteFormat('blocks');
     } finally {
       setIsLoading(false);
     }
@@ -164,20 +196,30 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
     setLastSaved(new Date());
   };
 
-  // 상세 노트 변경 핸들러 (IndexedDB)
-  const handleDetailedNoteChange = async (e) => {
-    const newValue = e.target.value;
-    setDetailedNote(newValue);
+  // 블록 변경 핸들러 (IndexedDB)
+  const handleBlocksChange = (newBlocks) => {
+    setBlocks(newBlocks);
+    saveBlocks(newBlocks);
+  };
+
+  // 블록 저장 (IndexedDB) - auto-save
+  const saveBlocks = async (newBlocks) => {
+    if (!selectedNote || !newBlocks) return;
     
-    // IndexedDB에 저장
     setSaveStatus('saving');
     try {
-      await saveNoteDetail(selectedNote.id, newValue);
+      const content = {
+        version: '2.0',
+        blocks: newBlocks,
+        updatedAt: Date.now()
+      };
+      
+      await saveBlockContent(selectedNote.id, content);
       setSaveStatus('saved');
       setLastSaved(new Date());
-      console.log(`💾 상세 노트 저장: ${selectedNote.id}`);
+      console.log(`💾 블록 노트 저장: ${selectedNote.id}`, newBlocks.length, 'blocks');
     } catch (error) {
-      console.error('상세 노트 저장 실패:', error);
+      console.error('블록 노트 저장 실패:', error);
       setSaveStatus('error');
     }
   };
@@ -267,34 +309,53 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
           {/* 구분선 */}
           <div className="border-t border-white/10"></div>
 
-          {/* 상세 노트 입력란 (IndexedDB) */}
+          {/* 상세 노트 입력란 (IndexedDB) - Block Editor */}
           <div className="flex-1 flex flex-col gap-2 min-h-0">
             <div className="flex items-center gap-2">
               <label className="text-sm font-semibold opacity-90">
-                📝 Detailed Note (상세 내용)
+                📝 Detailed Note (블록 에디터)
               </label>
               {isLoading && (
                 <span className="text-xs text-blue-400">
                   🔄 Loading...
                 </span>
               )}
+              {!isLoading && blocks.length > 0 && (
+                <span className="text-xs opacity-50">
+                  {blocks.length} block{blocks.length > 1 ? 's' : ''}
+                </span>
+              )}
             </div>
-            <textarea 
-              className="flex-1 w-full bg-black/40 border border-white/10 rounded p-3 text-sm resize-none focus:outline-none focus:border-teal-500/50 transition-colors min-h-[300px]"
-              placeholder="상세한 노트 내용을 작성하세요...
-
-💡 팁:
-- 연구 배경 및 동기
-- 핵심 아이디어 및 방법론
-- 실험 결과 및 분석
-- 참고할 점 및 개인적 의견
-- 향후 연구 방향
-
-⚡ 자동 저장됨 (IndexedDB)"
-              value={detailedNote}
-              onChange={handleDetailedNoteChange}
-              disabled={isLoading}
-            />
+            <div className="flex-1 bg-black/40 border border-white/10 rounded overflow-y-auto min-h-[300px]">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">📖</div>
+                    <div>Loading blocks...</div>
+                  </div>
+                </div>
+              ) : (
+                <ErrorBoundary
+                  onReset={() => {
+                    // Reload blocks on error
+                    loadDetailedNote(selectedNote.id);
+                  }}
+                  onFallbackToTextarea={() => {
+                    console.warn('Falling back to text editor due to error');
+                    // Could implement a simple textarea fallback here if needed
+                  }}
+                >
+                  <BlockEditor
+                    initialBlocks={blocks}
+                    onChange={handleBlocksChange}
+                    readOnly={false}
+                  />
+                </ErrorBoundary>
+              )}
+            </div>
+            <div className="text-xs opacity-50 mt-1">
+              💡 &quot;/&quot; 입력으로 블록 타입 선택 | 드래그로 순서 변경 | ⚡ 자동 저장
+            </div>
           </div>
         </div>
 
