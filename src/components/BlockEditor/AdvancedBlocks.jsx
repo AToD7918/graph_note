@@ -4,8 +4,9 @@
  * Advanced block components: Code, LaTeX, Image, File
  */
 
-import { forwardRef, useState } from 'react';
+import { forwardRef, useState, useEffect, useRef } from 'react';
 import { BLOCK_TYPES } from '../../types/blocks.js';
+import katex from 'katex';
 
 /**
  * CodeBlock Component
@@ -69,21 +70,25 @@ CodeBlock.displayName = 'CodeBlock';
  */
 export const LaTeXBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, autoFocus, readOnly }, ref) => {
   const [showPreview, setShowPreview] = useState(true);
+  const [renderError, setRenderError] = useState(null);
+  const previewRef = useRef(null);
   const isInline = block.metadata?.inline || false;
 
-  // Simple LaTeX rendering placeholder (will use KaTeX in production)
-  const renderLatex = (latex) => {
-    if (!latex.trim()) {
-      return <span className="text-gray-400 italic">Enter LaTeX formula...</span>;
+  // Render LaTeX using KaTeX
+  useEffect(() => {
+    if (showPreview && previewRef.current && block.content.trim()) {
+      try {
+        katex.render(block.content, previewRef.current, {
+          displayMode: !isInline,
+          throwOnError: false,
+          errorColor: '#ef4444',
+        });
+        setRenderError(null);
+      } catch (error) {
+        setRenderError(error.message);
+      }
     }
-    
-    // Placeholder: Show raw LaTeX with $ delimiters
-    return (
-      <span className="text-blue-600 font-mono">
-        {isInline ? `$${latex}$` : `$$${latex}$$`}
-      </span>
-    );
-  };
+  }, [showPreview, block.content, isInline]);
 
   return (
     <div className="latex-block my-2">
@@ -91,13 +96,13 @@ export const LaTeXBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, aut
       <div className="flex items-center gap-2 mb-1">
         <button
           onClick={() => setShowPreview(!showPreview)}
-          className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
+          className="text-xs px-2 py-1 bg-purple-900 text-purple-200 rounded hover:bg-purple-800"
           disabled={readOnly}
         >
           {showPreview ? '📝 Edit' : '👁️ Preview'}
         </button>
         
-        <label className="flex items-center gap-1 text-xs text-gray-600">
+        <label className="flex items-center gap-1 text-xs text-gray-400">
           <input
             type="checkbox"
             checked={isInline}
@@ -116,10 +121,17 @@ export const LaTeXBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, aut
       {/* Editor or Preview */}
       {showPreview ? (
         <div 
-          className={`p-4 bg-purple-50 rounded border border-purple-200 ${isInline ? '' : 'text-center'}`}
+          className={`p-4 bg-gray-800 rounded border border-purple-700 ${isInline ? '' : 'text-center'}`}
           onClick={() => !readOnly && setShowPreview(false)}
         >
-          {renderLatex(block.content)}
+          {block.content.trim() ? (
+            <div ref={previewRef} className="text-white" />
+          ) : (
+            <span className="text-gray-400 italic">Enter LaTeX formula...</span>
+          )}
+          {renderError && (
+            <div className="text-red-400 text-xs mt-2">{renderError}</div>
+          )}
         </div>
       ) : (
         <textarea
@@ -131,12 +143,12 @@ export const LaTeXBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, aut
           autoFocus={autoFocus}
           readOnly={readOnly}
           placeholder="x^2 + y^2 = z^2"
-          className="w-full px-4 py-3 bg-white border border-purple-300 rounded font-mono text-sm resize-none min-h-[80px] outline-none focus:border-purple-500"
+          className="w-full px-4 py-3 bg-gray-900 text-gray-100 border border-purple-700 rounded font-mono text-sm resize-none min-h-[80px] outline-none focus:border-purple-500"
         />
       )}
       
       <div className="text-xs text-gray-500 mt-1">
-        LaTeX Math Block (Preview uses KaTeX in production)
+        LaTeX Math Block (rendered with KaTeX)
       </div>
     </div>
   );

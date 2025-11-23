@@ -5,7 +5,7 @@
  * Uses native HTML5 drag and drop API
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 /**
  * DraggableBlock Component
@@ -34,6 +34,30 @@ export default function DraggableBlock({
   const [isDragOver, setIsDragOver] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const blockWrapperRef = useRef(null);
+
+  // Handle keyboard events at block level
+  const handleKeyDown = (e) => {
+    // Only handle Delete key when block is focused but no text input is active
+    if (e.key === 'Delete' && isFocused) {
+      const activeElement = document.activeElement;
+      const isTextInputActive = activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'INPUT');
+      
+      // If no text input is active, delete the block
+      if (!isTextInputActive) {
+        e.preventDefault();
+        e.stopPropagation();
+        onDelete && onDelete(block.id);
+      }
+    }
+  };
+
+  // Focus the wrapper when block is focused
+  useEffect(() => {
+    if (isFocused && blockWrapperRef.current) {
+      blockWrapperRef.current.focus();
+    }
+  }, [isFocused]);
 
   // Drag handlers
   const handleDragStart = (e) => {
@@ -81,7 +105,9 @@ export default function DraggableBlock({
 
   return (
     <div
-      className={`draggable-block-wrapper group relative transition-all duration-200 ${
+      ref={blockWrapperRef}
+      tabIndex={isFocused ? 0 : -1}
+      className={`draggable-block-wrapper group relative transition-all duration-200 outline-none ${
         isDragging ? 'opacity-50' : ''
       } ${isDragOver ? 'border-t-2 border-blue-500' : ''}`}
       onDragOver={handleDragOver}
@@ -90,6 +116,7 @@ export default function DraggableBlock({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => onFocus && onFocus(block.id)}
+      onKeyDown={handleKeyDown}
     >
       {/* Block container with focus/hover styling */}
       <div 

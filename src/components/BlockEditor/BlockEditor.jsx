@@ -151,15 +151,24 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
         const blockRef = blockRefs.current[blockId];
         
         if (blockRef) {
-          // Calculate menu position (below the input, using fixed positioning)
+          // Get the actual position of the input/textarea element (not the wrapper)
           const rect = blockRef.getBoundingClientRect();
+          
+          // Get the note panel container to calculate relative position
+          const notePanelContainer = document.querySelector('.right-panel-container');
+          const notePanelRect = notePanelContainer ? notePanelContainer.getBoundingClientRect() : null;
+          
+          // Calculate position relative to viewport, but considering note panel offset
+          const menuLeft = notePanelRect ? rect.left - notePanelRect.left : rect.left;
+          
+          // Use the input's actual left position which already accounts for padding
           setSlashMenuState({
             isOpen: true,
             blockId,
             query,
             position: {
               top: rect.bottom + 4,
-              left: rect.left
+              left: menuLeft + 2 // Add small offset for visual alignment
             }
           });
         }
@@ -253,12 +262,40 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
     const currentBlock = blocks[blockIndex];
     const previousBlock = blocks[blockIndex - 1];
 
-    // Only merge if current block is empty
-    if (!isBlockEmpty(currentBlock)) return;
-
-    // Delete current block and focus previous
-    setBlocks(prevBlocks => deleteBlock(prevBlocks, blockId));
-    setTimeout(() => focusBlock(previousBlock.id), 0);
+    // If current block is empty, just delete it
+    if (isBlockEmpty(currentBlock)) {
+      setBlocks(prevBlocks => deleteBlock(prevBlocks, blockId));
+      setTimeout(() => {
+        focusBlock(previousBlock.id);
+        // Move cursor to end of previous block
+        const prevRef = blockRefs.current[previousBlock.id];
+        if (prevRef && prevRef.setSelectionRange) {
+          const length = prevRef.value?.length || 0;
+          prevRef.setSelectionRange(length, length);
+        }
+      }, 0);
+    } else {
+      // If current block has content, merge it into previous block
+      const prevContent = previousBlock.content || '';
+      const currentContent = currentBlock.content || '';
+      const mergedContent = prevContent + currentContent;
+      const cursorPosition = prevContent.length;
+      
+      setBlocks(prevBlocks => {
+        let newBlocks = updateBlockContent(prevBlocks, previousBlock.id, mergedContent);
+        newBlocks = deleteBlock(newBlocks, blockId);
+        return newBlocks;
+      });
+      
+      setTimeout(() => {
+        focusBlock(previousBlock.id);
+        // Set cursor at the merge point
+        const prevRef = blockRefs.current[previousBlock.id];
+        if (prevRef && prevRef.setSelectionRange) {
+          prevRef.setSelectionRange(cursorPosition, cursorPosition);
+        }
+      }, 0);
+    }
   }, [blocks, readOnly, focusBlock]);
 
   // Handle Arrow Up - move to previous block
@@ -357,12 +394,81 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
       }
 
       case 'Delete': {
+        const ref = blockRefs.current[blockId];
         const currentBlock = blocks.find(b => b.id === blockId);
+        const blockIndex = findBlockIndex(blocks, blockId);
         
-        // Delete block if empty
-        if (currentBlock && isBlockEmpty(currentBlock)) {
+        // Check if text input is actually focused (not just block selected)
+        const isTextInputFocused = ref && document.activeElement === ref;
+        
+        // For blocks with text input that is focused
+        if (isTextInputFocused && ref.selectionStart !== undefined && ref.selectionEnd !== undefined) {
+          const hasSelection = ref.selectionStart !== ref.selectionEnd;
+          const cursorAtEnd = ref.selectionStart === (ref.value?.length || 0);
+          
+          // Case 1: Empty block - delete current block and move to next
+          if (!hasSelection && currentBlock && isBlockEmpty(currentBlock)) {
+            e.preventDefault();
+            const nextBlock = blocks[blockIndex + 1];
+            
+            setBlocks(prevBlocks => deleteBlock(prevBlocks, blockId));
+            
+            // Focus next block at start
+            if (nextBlock) {
+              setTimeout(() => {
+                focusBlock(nextBlock.id);
+                const nextRef = blockRefs.current[nextBlock.id];
+                if (nextRef && nextRef.setSelectionRange) {
+                  nextRef.setSelectionRange(0, 0);
+                }
+              }, 0);
+            } else if (blockIndex > 0) {
+              const prevBlock = blocks[blockIndex - 1];
+              setTimeout(() => focusBlock(prevBlock.id), 0);
+            }
+          }
+          // Case 2: Cursor at end of non-empty block - merge with next block
+          else if (!hasSelection && cursorAtEnd && blockIndex < blocks.length - 1) {
+            e.preventDefault();
+            const nextBlock = blocks[blockIndex + 1];
+            
+            if (nextBlock) {
+              // Merge next block content into current block
+              const currentContent = currentBlock.content || '';
+              const nextContent = nextBlock.content || '';
+              const mergedContent = currentContent + nextContent;
+              const cursorPosition = currentContent.length;
+              
+              setBlocks(prevBlocks => {
+                let newBlocks = updateBlockContent(prevBlocks, blockId, mergedContent);
+                newBlocks = deleteBlock(newBlocks, nextBlock.id);
+                return newBlocks;
+              });
+              
+              // Set cursor position after merge
+              setTimeout(() => {
+                const currentRef = blockRefs.current[blockId];
+                if (currentRef && currentRef.setSelectionRange) {
+                  currentRef.setSelectionRange(cursorPosition, cursorPosition);
+                }
+              }, 0);
+            }
+          }
+        }
+        // For blocks without text input (divider, image, file)
+        else if (!ref && currentBlock && [BLOCK_TYPES.DIVIDER, BLOCK_TYPES.IMAGE, BLOCK_TYPES.FILE].includes(currentBlock.type)) {
           e.preventDefault();
-          handleBlockDelete(blockId);
+          const nextBlock = blocks[blockIndex + 1];
+          
+          setBlocks(prevBlocks => deleteBlock(prevBlocks, blockId));
+          
+          // Focus next block if exists, otherwise focus previous
+          if (nextBlock) {
+            setTimeout(() => focusBlock(nextBlock.id), 0);
+          } else if (blockIndex > 0) {
+            const prevBlock = blocks[blockIndex - 1];
+            setTimeout(() => focusBlock(prevBlock.id), 0);
+          }
         }
         break;
       }
@@ -438,11 +544,29 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
 
     // Change block type and clear slash command from content
     handleBlockTypeChange(slashMenuState.blockId, blockType);
-    setBlocks(prevBlocks => updateBlockContent(prevBlocks, slashMenuState.blockId, ''));
+    setBlocks(prevBlocks => {
+      const updatedBlocks = updateBlockContent(prevBlocks, slashMenuState.blockId, '');
+      
+      // For non-editable blocks (divider, image, file), add a new text block after
+      if ([BLOCK_TYPES.DIVIDER, BLOCK_TYPES.IMAGE, BLOCK_TYPES.FILE].includes(blockType)) {
+        const blockIndex = findBlockIndex(updatedBlocks, slashMenuState.blockId);
+        if (blockIndex !== -1) {
+          const newTextBlock = createBlock(BLOCK_TYPES.TEXT, '');
+          const newBlocks = insertBlock(updatedBlocks, newTextBlock, blockIndex + 1);
+          
+          // Focus the new text block
+          setTimeout(() => focusBlock(newTextBlock.id), 0);
+          
+          return newBlocks;
+        }
+      }
+      
+      return updatedBlocks;
+    });
     
     // Close menu
     setSlashMenuState({ isOpen: false, blockId: null, query: '', position: { top: 0, left: 0 } });
-  }, [slashMenuState.blockId, handleBlockTypeChange]);
+  }, [slashMenuState.blockId, handleBlockTypeChange, focusBlock]);
 
   // Close slash menu
   const closeSlashMenu = useCallback(() => {
