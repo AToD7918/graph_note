@@ -192,6 +192,31 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
     const currentBlock = blocks[blockIndex];
     const cursorPosition = blockRefs.current[blockId]?.selectionStart;
 
+    // Determine the type for the new block
+    let newBlockType = BLOCK_TYPES.TEXT;
+    let newBlockMetadata = {};
+    
+    // If current block is a list type, continue with the same list type
+    if ([BLOCK_TYPES.BULLET_LIST, BLOCK_TYPES.NUMBERED_LIST, BLOCK_TYPES.TODO_LIST].includes(currentBlock.type)) {
+      // If current block is empty, convert to text instead of continuing list
+      if (!currentBlock.content || currentBlock.content.trim() === '') {
+        // Convert current empty list item to text and focus it
+        setBlocks(prevBlocks => changeBlockType(prevBlocks, blockId, BLOCK_TYPES.TEXT));
+        setTimeout(() => focusBlock(blockId), 0);
+        return;
+      }
+      newBlockType = currentBlock.type;
+      // For TODO list, reset checked state
+      if (currentBlock.type === BLOCK_TYPES.TODO_LIST) {
+        newBlockMetadata = { checked: false };
+      }
+      // For NUMBERED list, increment the number
+      if (currentBlock.type === BLOCK_TYPES.NUMBERED_LIST) {
+        const currentNumber = currentBlock.metadata?.number || 1;
+        newBlockMetadata = { number: currentNumber + 1 };
+      }
+    }
+
     // Split content at cursor if applicable
     if (cursorPosition !== undefined && currentBlock.type === BLOCK_TYPES.TEXT) {
       const beforeCursor = currentBlock.content.substring(0, cursorPosition);
@@ -211,8 +236,8 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
         return newBlocks;
       });
     } else {
-      // Simple case: insert empty text block below
-      const newBlock = createBlock(BLOCK_TYPES.TEXT);
+      // Insert new block with the determined type
+      const newBlock = createBlock(newBlockType, '', newBlockMetadata);
       setBlocks(prevBlocks => insertBlock(prevBlocks, newBlock, blockIndex + 1));
       setTimeout(() => focusBlock(newBlock.id), 0);
     }
@@ -301,6 +326,11 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
 
   // Handle keyboard events from blocks
   const handleKeyDown = useCallback((blockId, e) => {
+    // If slash menu is open, don't handle arrow keys and Enter (let menu handle them)
+    if (slashMenuState.isOpen && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
+      return;
+    }
+
     switch (e.key) {
       case 'Enter':
         if (!e.shiftKey) {
@@ -395,7 +425,7 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
       default:
         break;
     }
-  }, [blocks, handleEnter, handleBackspaceAtStart, handleArrowUp, handleArrowDown, handleBlockDelete, focusBlock]);
+  }, [blocks, slashMenuState.isOpen, handleEnter, handleBackspaceAtStart, handleArrowUp, handleArrowDown, handleBlockDelete, focusBlock]);
 
   // Handle block focus
   const handleBlockFocus = useCallback((blockId) => {
@@ -491,6 +521,13 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
       onChange: (content, metadata) => handleBlockChange(block.id, content, metadata),
       onKeyDown: (e) => handleKeyDown(block.id, e),
       onFocus: () => handleBlockFocus(block.id),
+      onMetadataChange: (blockId, metadata) => {
+        setBlocks(prevBlocks =>
+          prevBlocks.map(b =>
+            b.id === blockId ? { ...b, metadata: { ...b.metadata, ...metadata } } : b
+          )
+        );
+      },
       autoFocus: isFirstBlock && blocks.length === 1,
       readOnly,
       ref: (ref) => registerBlockRef(block.id, ref)
@@ -500,10 +537,10 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
       case BLOCK_TYPES.TEXT:
         return <TextBlock {...commonProps} />;
 
-      case BLOCK_TYPES.HEADING_1:
-      case BLOCK_TYPES.HEADING_2:
-      case BLOCK_TYPES.HEADING_3:
-        return <HeadingBlock {...commonProps} level={block.type.split('_')[1]} />;
+      case BLOCK_TYPES.HEADING1:
+      case BLOCK_TYPES.HEADING2:
+      case BLOCK_TYPES.HEADING3:
+        return <HeadingBlock {...commonProps} level={block.type.slice(-1)} />;
 
       case BLOCK_TYPES.BULLET_LIST:
       case BLOCK_TYPES.NUMBERED_LIST:

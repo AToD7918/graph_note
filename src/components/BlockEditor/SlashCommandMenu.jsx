@@ -64,7 +64,7 @@ export default function SlashCommandMenu({ query = '', onSelect, onClose, positi
         case 'Enter':
           e.preventDefault();
           if (filteredCommands[selectedIndex]) {
-            onSelect(filteredCommands[selectedIndex].type);
+            onSelect(filteredCommands[selectedIndex].blockType);
           }
           break;
 
@@ -122,13 +122,13 @@ export default function SlashCommandMenu({ query = '', onSelect, onClose, positi
     >
       {filteredCommands.map((cmd, index) => (
         <button
-          key={cmd.type}
+          key={cmd.id}
           className={`
             w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-gray-700
             ${index === selectedIndex ? 'bg-blue-600/20 text-blue-400' : 'text-gray-200'}
             transition-colors duration-100
           `}
-          onClick={() => onSelect(cmd.type)}
+          onClick={() => onSelect(cmd.blockType)}
           onMouseEnter={() => setSelectedIndex(index)}
         >
           {/* Icon */}

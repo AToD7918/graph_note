@@ -124,14 +124,14 @@ export const ListBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, onMe
       case BLOCK_TYPES.BULLET_LIST:
         return '•';
       case BLOCK_TYPES.NUMBERED_LIST:
-        return '1.';
+        return `${block.metadata?.number || 1}.`;
       case BLOCK_TYPES.TODO_LIST:
         return (
           <input
             type="checkbox"
             checked={block.metadata?.checked || false}
-            onChange={(e) => onMetadataChange(block.id, { checked: e.target.checked })}
-            className="mr-2 cursor-pointer"
+            onChange={(e) => onMetadataChange && onMetadataChange(block.id, { checked: e.target.checked })}
+            className="cursor-pointer"
           />
         );
       default:
@@ -140,8 +140,8 @@ export const ListBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, onMe
   };
 
   return (
-    <div className="flex items-start gap-2">
-      <span className="text-gray-400 mt-0.5 flex-shrink-0">
+    <div className="flex items-center gap-2">
+      <span className="text-gray-400 flex-shrink-0">
         {getListIcon()}
       </span>
       <input
