@@ -54,13 +54,6 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
     return createEmptyNoteContent().blocks;
   });
 
-  // Update blocks when initialBlocks prop changes
-  useEffect(() => {
-    if (initialBlocks && Array.isArray(initialBlocks) && initialBlocks.length > 0) {
-      setBlocks(initialBlocks);
-    }
-  }, [initialBlocks]);
-
   // Track focused block
   const [_focusedBlockId, setFocusedBlockId] = useState(null);
 
@@ -74,13 +67,27 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
 
   // Refs for block elements (keyed by blockId)
   const blockRefs = useRef({});
-
-  // Notify parent of changes
+  
+  // Store onChange in ref to avoid triggering effect on every render
+  const onChangeRef = useRef(onChange);
   useEffect(() => {
-    if (onChange) {
-      onChange(blocks);
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // Track if this is the first render to avoid calling onChange on mount
+  const isFirstRender = useRef(true);
+
+  // Notify parent of changes (only when blocks actually change, not on mount)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
-  }, [blocks, onChange]);
+    
+    if (onChangeRef.current) {
+      onChangeRef.current(blocks);
+    }
+  }, [blocks]);
 
   // Register block ref
   const registerBlockRef = useCallback((blockId, ref) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { loadNoteDetail, saveNoteDetail, loadBlockContent, saveBlockContent } from '../../adapters/noteStorage';
 import { TagInput } from './Tag/TagInput';
 import { addTagToIndex } from '../../utils/tagHelpers';
@@ -196,14 +196,8 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
     setLastSaved(new Date());
   };
 
-  // 블록 변경 핸들러 (IndexedDB)
-  const handleBlocksChange = (newBlocks) => {
-    setBlocks(newBlocks);
-    saveBlocks(newBlocks);
-  };
-
   // 블록 저장 (IndexedDB) - auto-save
-  const saveBlocks = async (newBlocks) => {
+  const saveBlocks = useCallback(async (newBlocks) => {
     if (!selectedNote || !newBlocks) return;
     
     setSaveStatus('saving');
@@ -222,7 +216,22 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
       console.error('블록 노트 저장 실패:', error);
       setSaveStatus('error');
     }
-  };
+  }, [selectedNote]);
+
+  // 블록 변경 핸들러 (IndexedDB)
+  const handleBlocksChange = useCallback((newBlocks) => {
+    setBlocks(newBlocks);
+    
+    // Debounce save - clear previous timer
+    if (window.blockSaveTimer) {
+      clearTimeout(window.blockSaveTimer);
+    }
+    
+    // Set new timer to save after 500ms of inactivity
+    window.blockSaveTimer = setTimeout(() => {
+      saveBlocks(newBlocks);
+    }, 500);
+  }, [saveBlocks]);
 
   // 패널이 닫혀있으면 렌더링하지 않음
   if (!isOpen || !selectedNote) {
@@ -336,6 +345,7 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
                 </div>
               ) : (
                 <ErrorBoundary
+                  key={selectedNote.id}
                   onReset={() => {
                     // Reload blocks on error
                     loadDetailedNote(selectedNote.id);
@@ -346,6 +356,7 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
                   }}
                 >
                   <BlockEditor
+                    key={selectedNote.id}
                     initialBlocks={blocks}
                     onChange={handleBlocksChange}
                     readOnly={false}
