@@ -5,7 +5,7 @@
  * Manages block array state and renders appropriate block components
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { BLOCK_TYPES } from '../../types/blocks.js';
 import {
   createBlock,
@@ -45,7 +45,7 @@ import DraggableBlock from './DraggableBlock.jsx';
  * @param {Function} props.onChange - Callback when blocks change
  * @param {boolean} props.readOnly - Read-only mode
  */
-export default function BlockEditor({ initialBlocks = null, onChange, readOnly = false }) {
+const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onChange, readOnly = false }, ref) {
   // Initialize blocks (default to single empty text block)
   const [blocks, setBlocks] = useState(() => {
     if (initialBlocks && Array.isArray(initialBlocks) && initialBlocks.length > 0) {
@@ -55,7 +55,7 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
   });
 
   // Track focused block
-  const [_focusedBlockId, setFocusedBlockId] = useState(null);
+  const [focusedBlockId, setFocusedBlockId] = useState(null);
 
   // Slash command menu state
   const [slashMenuState, setSlashMenuState] = useState({
@@ -107,6 +107,16 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
     }
   }, []);
 
+  // Expose focusLastBlock method to parent via ref
+  useImperativeHandle(ref, () => ({
+    focusLastBlock: () => {
+      if (blocks.length > 0) {
+        const lastBlock = blocks[blocks.length - 1];
+        focusBlock(lastBlock.id);
+      }
+    }
+  }), [blocks, focusBlock]);
+
   // Handle block content change (supports metadata updates)
   const handleBlockChange = useCallback((blockId, newContent, newMetadata) => {
     setBlocks(prevBlocks => {
@@ -132,27 +142,32 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
     });
 
     // Check for slash command (only for text content)
-    if (typeof newContent === 'string' && isSlashCommand(newContent)) {
-      const query = extractSlashQuery(newContent);
-      const blockRef = blockRefs.current[blockId];
+    if (typeof newContent === 'string') {
+      const trimmed = newContent.trim();
       
-      if (blockRef) {
-        // Calculate menu position (below the input)
-        const rect = blockRef.getBoundingClientRect();
-        setSlashMenuState({
-          isOpen: true,
-          blockId,
-          query,
-          position: {
-            top: rect.bottom + window.scrollY + 4,
-            left: rect.left + window.scrollX
-          }
-        });
-      }
-    } else {
-      // Close menu if slash command is removed
-      if (slashMenuState.isOpen && slashMenuState.blockId === blockId) {
-        setSlashMenuState({ isOpen: false, blockId: null, query: '', position: { top: 0, left: 0 } });
+      // Check if content is exactly '/' or starts with '/'
+      if (trimmed === '/' || trimmed.startsWith('/')) {
+        const query = trimmed === '/' ? '' : trimmed.slice(1).toLowerCase();
+        const blockRef = blockRefs.current[blockId];
+        
+        if (blockRef) {
+          // Calculate menu position (below the input, using fixed positioning)
+          const rect = blockRef.getBoundingClientRect();
+          setSlashMenuState({
+            isOpen: true,
+            blockId,
+            query,
+            position: {
+              top: rect.bottom + 4,
+              left: rect.left
+            }
+          });
+        }
+      } else {
+        // Close menu if slash command is removed
+        if (slashMenuState.isOpen && slashMenuState.blockId === blockId) {
+          setSlashMenuState({ isOpen: false, blockId: null, query: '', position: { top: 0, left: 0 } });
+        }
       }
     }
   }, [slashMenuState]);
@@ -237,6 +252,31 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
     }
   }, [blocks, focusBlock]);
 
+  // Handle block delete
+  const handleBlockDelete = useCallback((blockId) => {
+    if (readOnly) return;
+    
+    const blockIndex = findBlockIndex(blocks, blockId);
+    if (blockIndex === -1) return;
+    
+    setBlocks(prevBlocks => {
+      // Don't allow deleting the last block
+      if (prevBlocks.length === 1) {
+        return [createBlock(BLOCK_TYPES.TEXT)];
+      }
+      
+      const newBlocks = deleteBlock(prevBlocks, blockId);
+      
+      // Focus previous or next block
+      const targetIndex = blockIndex > 0 ? blockIndex - 1 : 0;
+      if (newBlocks[targetIndex]) {
+        setTimeout(() => focusBlock(newBlocks[targetIndex].id), 0);
+      }
+      
+      return newBlocks;
+    });
+  }, [blocks, readOnly, focusBlock]);
+
   // Handle keyboard events from blocks
   const handleKeyDown = useCallback((blockId, e) => {
     switch (e.key) {
@@ -249,9 +289,28 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
 
       case 'Backspace': {
         const ref = blockRefs.current[blockId];
-        if (ref && ref.selectionStart === 0 && ref.selectionEnd === 0) {
+        const currentBlock = blocks.find(b => b.id === blockId);
+        
+        // Delete block if empty
+        if (currentBlock && isBlockEmpty(currentBlock)) {
+          e.preventDefault();
+          handleBlockDelete(blockId);
+        }
+        // Merge with previous block if at start
+        else if (ref && ref.selectionStart === 0 && ref.selectionEnd === 0) {
           e.preventDefault();
           handleBackspaceAtStart(blockId);
+        }
+        break;
+      }
+
+      case 'Delete': {
+        const currentBlock = blocks.find(b => b.id === blockId);
+        
+        // Delete block if empty
+        if (currentBlock && isBlockEmpty(currentBlock)) {
+          e.preventDefault();
+          handleBlockDelete(blockId);
         }
         break;
       }
@@ -279,7 +338,7 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
       default:
         break;
     }
-  }, [handleEnter, handleBackspaceAtStart, handleArrowUp, handleArrowDown]);
+  }, [blocks, handleEnter, handleBackspaceAtStart, handleArrowUp, handleArrowDown, handleBlockDelete]);
 
   // Handle block focus
   const handleBlockFocus = useCallback((blockId) => {
@@ -310,19 +369,6 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
     setBlocks(prevBlocks => {
       const blockId = prevBlocks[fromIndex].id;
       return moveBlock(prevBlocks, blockId, toIndex);
-    });
-  }, [readOnly]);
-
-  // Handle block delete
-  const handleBlockDelete = useCallback((blockId) => {
-    if (readOnly) return;
-    
-    setBlocks(prevBlocks => {
-      // Don't allow deleting the last block
-      if (prevBlocks.length === 1) {
-        return [createBlock(BLOCK_TYPES.TEXT)];
-      }
-      return deleteBlock(prevBlocks, blockId);
     });
   }, [readOnly]);
 
@@ -445,6 +491,8 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
         onDelete={handleBlockDelete}
         onDuplicate={handleBlockDuplicate}
         readOnly={readOnly}
+        isFocused={focusedBlockId === block.id}
+        onFocus={handleBlockFocus}
       >
         {renderBlockContent(block)}
       </DraggableBlock>
@@ -452,8 +500,8 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
   };
 
   return (
-    <div className="block-editor w-full max-w-4xl mx-auto py-8 px-4 relative">
-      <div className="space-y-2">
+    <div className="block-editor w-full max-w-4xl mx-auto py-8 px-4 relative min-h-[200px]">
+      <div className="space-y-1">
         {blocks.map((block, index) => renderBlock(block, index))}
       </div>
 
@@ -475,4 +523,6 @@ export default function BlockEditor({ initialBlocks = null, onChange, readOnly =
       )}
     </div>
   );
-}
+});
+
+export default BlockEditor;

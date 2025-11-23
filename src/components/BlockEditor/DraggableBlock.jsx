@@ -25,12 +25,15 @@ export default function DraggableBlock({
   onMove, 
   onDelete, 
   onDuplicate, 
-  readOnly, 
+  readOnly,
+  isFocused = false,
+  onFocus,
   children 
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Drag handlers
   const handleDragStart = (e) => {
@@ -78,23 +81,38 @@ export default function DraggableBlock({
 
   return (
     <div
-      className={`draggable-block-wrapper group relative transition-all ${
+      className={`draggable-block-wrapper group relative transition-all duration-200 ${
         isDragging ? 'opacity-50' : ''
       } ${isDragOver ? 'border-t-2 border-blue-500' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={() => onFocus && onFocus(block.id)}
     >
-      {/* Block container */}
-      <div className="flex items-start gap-2">
+      {/* Block container with focus/hover styling */}
+      <div 
+        className={`flex items-start gap-2 rounded-lg px-2 py-0.5 -mx-2 transition-all duration-200 ${
+          isFocused 
+            ? 'bg-blue-500/10 shadow-[0_0_0_2px_rgba(59,130,246,0.3)]' 
+            : isHovered 
+            ? 'bg-gray-800/40' 
+            : 'bg-transparent'
+        }`}
+      >
         {/* Drag handle */}
         {!readOnly && (
-          <div className="flex-shrink-0 pt-2">
+          <div className="flex-shrink-0 self-center">
             <button
               draggable={!readOnly}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
-              className="drag-handle opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded transition-opacity"
+              className={`drag-handle cursor-grab active:cursor-grabbing p-1 rounded transition-all duration-200 ${
+                isHovered || isFocused 
+                  ? 'opacity-100 hover:bg-gray-700' 
+                  : 'opacity-0'
+              }`}
               title="Drag to reorder"
             >
               <svg 
@@ -122,10 +140,17 @@ export default function DraggableBlock({
 
         {/* Action menu */}
         {!readOnly && (
-          <div className="flex-shrink-0 relative pt-2">
+          <div className="flex-shrink-0 relative self-center">
             <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 rounded transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMenu(!showMenu);
+              }}
+              className={`p-1 rounded transition-all duration-200 ${
+                isHovered || isFocused 
+                  ? 'opacity-100 hover:bg-gray-700' 
+                  : 'opacity-0'
+              }`}
               title="Block actions"
             >
               <svg 
@@ -151,13 +176,13 @@ export default function DraggableBlock({
                 />
                 
                 {/* Menu */}
-                <div className="absolute right-0 top-8 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[140px]">
+                <div className="absolute right-0 top-8 z-20 bg-gray-800 border border-gray-700 rounded-lg shadow-lg py-1 min-w-[140px]">
                   <button
                     onClick={() => {
                       onDuplicate && onDuplicate(block.id);
                       setShowMenu(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2"
                   >
                     <span>📋</span>
                     <span>Duplicate</span>
@@ -169,20 +194,20 @@ export default function DraggableBlock({
                       navigator.clipboard.writeText(JSON.stringify(block, null, 2));
                       setShowMenu(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2"
                   >
                     <span>📄</span>
                     <span>Copy</span>
                   </button>
                   
-                  <div className="border-t border-gray-200 my-1" />
+                  <div className="border-t border-gray-700 my-1" />
                   
                   <button
                     onClick={() => {
                       onDelete && onDelete(block.id);
                       setShowMenu(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2"
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-red-900/50 text-red-400 flex items-center gap-2"
                   >
                     <span>🗑️</span>
                     <span>Delete</span>

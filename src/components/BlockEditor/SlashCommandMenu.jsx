@@ -106,8 +106,8 @@ export default function SlashCommandMenu({ query = '', onSelect, onClose, positi
     return (
       <div
         ref={menuRef}
-        className="absolute z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3 min-w-[200px]"
-        style={{ top: position.top, left: position.left }}
+        className="fixed z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-3 min-w-[200px]"
+        style={{ top: `${position.top}px`, left: `${position.left}px` }}
       >
         <div className="text-gray-400 text-sm">No commands found</div>
       </div>
@@ -117,15 +117,15 @@ export default function SlashCommandMenu({ query = '', onSelect, onClose, positi
   return (
     <div
       ref={menuRef}
-      className="absolute z-50 bg-white border border-gray-300 rounded-lg shadow-lg py-1 min-w-[250px] max-h-[400px] overflow-y-auto"
-      style={{ top: position.top, left: position.left }}
+      className="fixed z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-lg py-1 min-w-[250px] max-h-[400px] overflow-y-auto"
+      style={{ top: `${position.top}px`, left: `${position.left}px` }}
     >
       {filteredCommands.map((cmd, index) => (
         <button
           key={cmd.type}
           className={`
-            w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-gray-100
-            ${index === selectedIndex ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}
+            w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-gray-700
+            ${index === selectedIndex ? 'bg-blue-600/20 text-blue-400' : 'text-gray-200'}
             transition-colors duration-100
           `}
           onClick={() => onSelect(cmd.type)}
@@ -144,7 +144,7 @@ export default function SlashCommandMenu({ query = '', onSelect, onClose, positi
 
           {/* Keywords hint */}
           {cmd.keywords.length > 0 && (
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-gray-500">
               {cmd.keywords[0]}
             </div>
           )}

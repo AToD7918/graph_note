@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { loadNoteDetail, saveNoteDetail, loadBlockContent, saveBlockContent } from '../../adapters/noteStorage';
 import { TagInput } from './Tag/TagInput';
 import { addTagToIndex } from '../../utils/tagHelpers';
@@ -48,6 +48,9 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
 
   // 리사이징 상태
   const [isResizing, setIsResizing] = useState(false);
+  
+  // BlockEditor ref
+  const blockEditorRef = useRef(null);
 
   // 리사이저 마우스 다운 핸들러
   const handleMouseDown = (e) => {
@@ -335,7 +338,21 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
                 </span>
               )}
             </div>
-            <div className="flex-1 bg-black/40 border border-white/10 rounded overflow-y-auto min-h-[300px]">
+            <div 
+              id="note-content-area"
+              className="flex-1 bg-black/40 border border-white/10 rounded overflow-y-auto min-h-[300px] cursor-text"
+              onClick={(e) => {
+                // Focus last block when clicking empty area (not on a block)
+                const clickedOnBlock = e.target.closest('.draggable-block-wrapper') || 
+                                      e.target.closest('input') || 
+                                      e.target.closest('textarea') ||
+                                      e.target.closest('button');
+                
+                if (!clickedOnBlock && blockEditorRef.current) {
+                  blockEditorRef.current.focusLastBlock();
+                }
+              }}
+            >
               {isLoading ? (
                 <div className="flex items-center justify-center h-full text-gray-400">
                   <div className="text-center">
@@ -356,6 +373,7 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
                   }}
                 >
                   <BlockEditor
+                    ref={blockEditorRef}
                     key={selectedNote.id}
                     initialBlocks={blocks}
                     onChange={handleBlocksChange}

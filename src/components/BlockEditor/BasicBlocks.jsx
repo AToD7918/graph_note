@@ -1,10 +1,10 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, forwardRef } from 'react';
 import { BLOCK_TYPES } from '../../types/blocks';
 
 /**
  * 텍스트 블록 컴포넌트
  */
-export const TextBlock = ({ block, onChange, onKeyDown, onFocus, autoFocus }) => {
+export const TextBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, autoFocus }, ref) => {
   const textareaRef = useRef(null);
 
   useEffect(() => {
@@ -12,6 +12,17 @@ export const TextBlock = ({ block, onChange, onKeyDown, onFocus, autoFocus }) =>
       textareaRef.current.focus();
     }
   }, [autoFocus]);
+
+  // Merge external ref with internal ref
+  useEffect(() => {
+    if (ref && textareaRef.current) {
+      if (typeof ref === 'function') {
+        ref(textareaRef.current);
+      } else {
+        ref.current = textareaRef.current;
+      }
+    }
+  }, [ref]);
 
   return (
     <textarea
@@ -33,12 +44,12 @@ export const TextBlock = ({ block, onChange, onKeyDown, onFocus, autoFocus }) =>
       }}
     />
   );
-};
+});
 
 /**
  * 헤딩 블록 컴포넌트
  */
-export const HeadingBlock = ({ block, onChange, onKeyDown, onFocus, autoFocus }) => {
+export const HeadingBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, autoFocus }, ref) => {
   const inputRef = useRef(null);
   
   useEffect(() => {
@@ -46,6 +57,17 @@ export const HeadingBlock = ({ block, onChange, onKeyDown, onFocus, autoFocus })
       inputRef.current.focus();
     }
   }, [autoFocus]);
+
+  // Merge external ref with internal ref
+  useEffect(() => {
+    if (ref && inputRef.current) {
+      if (typeof ref === 'function') {
+        ref(inputRef.current);
+      } else {
+        ref.current = inputRef.current;
+      }
+    }
+  }, [ref]);
 
   const getHeadingStyle = () => {
     switch (block.type) {
@@ -72,12 +94,12 @@ export const HeadingBlock = ({ block, onChange, onKeyDown, onFocus, autoFocus })
       placeholder={`제목 ${block.type.slice(-1)}`}
     />
   );
-};
+});
 
 /**
  * 리스트 블록 컴포넌트
  */
-export const ListBlock = ({ block, onChange, onKeyDown, onFocus, onMetadataChange, autoFocus }) => {
+export const ListBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, onMetadataChange, autoFocus }, ref) => {
   const inputRef = useRef(null);
   
   useEffect(() => {
@@ -85,6 +107,17 @@ export const ListBlock = ({ block, onChange, onKeyDown, onFocus, onMetadataChang
       inputRef.current.focus();
     }
   }, [autoFocus]);
+
+  // Merge external ref with internal ref
+  useEffect(() => {
+    if (ref && inputRef.current) {
+      if (typeof ref === 'function') {
+        ref(inputRef.current);
+      } else {
+        ref.current = inputRef.current;
+      }
+    }
+  }, [ref]);
 
   const getListIcon = () => {
     switch (block.type) {
@@ -123,7 +156,7 @@ export const ListBlock = ({ block, onChange, onKeyDown, onFocus, onMetadataChang
       />
     </div>
   );
-};
+});
 
 /**
  * 구분선 블록 컴포넌트
@@ -137,7 +170,7 @@ export const DividerBlock = () => {
 /**
  * 인용구 블록 컴포넌트
  */
-export const QuoteBlock = ({ block, onChange, onKeyDown, onFocus, autoFocus }) => {
+export const QuoteBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, autoFocus }, ref) => {
   const textareaRef = useRef(null);
 
   useEffect(() => {
@@ -145,6 +178,17 @@ export const QuoteBlock = ({ block, onChange, onKeyDown, onFocus, autoFocus }) =
       textareaRef.current.focus();
     }
   }, [autoFocus]);
+
+  // Merge external ref with internal ref
+  useEffect(() => {
+    if (ref && textareaRef.current) {
+      if (typeof ref === 'function') {
+        ref(textareaRef.current);
+      } else {
+        ref.current = textareaRef.current;
+      }
+    }
+  }, [ref]);
 
   return (
     <div className="border-l-4 border-gray-500 pl-4 py-1">
@@ -168,4 +212,4 @@ export const QuoteBlock = ({ block, onChange, onKeyDown, onFocus, autoFocus }) =
       />
     </div>
   );
-};
+});
