@@ -20,6 +20,7 @@ export function TagInput({ value = {}, onChange, tagsIndex = {} }) {
   const [localTags, setLocalTags] = useState(value);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [justAddedCategory, setJustAddedCategory] = useState(null);
 
   // value prop 변경 시 로컬 상태 업데이트
   useEffect(() => {
@@ -81,6 +82,10 @@ export function TagInput({ value = {}, onChange, tagsIndex = {} }) {
     
     setNewCategoryName('');
     setIsAddingCategory(false);
+    setJustAddedCategory(trimmed);
+    
+    // 짧은 딜레이 후 자동으로 리셋 (렌더링 후)
+    setTimeout(() => setJustAddedCategory(null), 100);
   };
 
   // 카테고리명 변경 (입력 중)
@@ -94,6 +99,8 @@ export function TagInput({ value = {}, onChange, tagsIndex = {} }) {
       e.preventDefault();
       handleAddCategory();
     } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
       setNewCategoryName('');
       setIsAddingCategory(false);
     }
@@ -137,6 +144,7 @@ export function TagInput({ value = {}, onChange, tagsIndex = {} }) {
             onRemoveCategory={handleRemoveCategory}
             onAddTag={handleAddTag}
             tagSuggestions={getCategorySuggestions(category)}
+            autoFocus={category === justAddedCategory}
           />
         ))}
 

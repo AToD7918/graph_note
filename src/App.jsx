@@ -252,6 +252,9 @@ export default function App() {
         if (linkPreviewMenu.visible) {
           setLinkPreviewMenu({ visible: false, x: 0, y: 0 });
           setSelectedLink(null);
+        } else if (notePanelOpen) {
+          // 노트패널이 열려있으면 닫기 (Close 버튼과 동일한 동작)
+          closeNotePanel();
         } else {
           setSelectedId(null); 
           hideContextMenu();
@@ -287,7 +290,7 @@ export default function App() {
       window.removeEventListener('keydown', onDelete);
       window.removeEventListener('click', onClick); 
     };
-  }, [setSelectedId, hideContextMenu, linkPreviewMenu.visible, selectedLink, graph.nodes, deleteLink]);
+  }, [setSelectedId, hideContextMenu, linkPreviewMenu.visible, selectedLink, graph.nodes, deleteLink, notePanelOpen, closeNotePanel]);
 
   // === 줌/핏 키보드 단축키 ===
   useEffect(() => {

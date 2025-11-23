@@ -24,8 +24,9 @@ export function CategoryRow({
   tagSuggestions = [],
   isNew = false,
   onCategoryNameChange,
+  autoFocus = false,
 }) {
-  const [isAddingTag, setIsAddingTag] = useState(false);
+  const [isAddingTag, setIsAddingTag] = useState(autoFocus);
   const [tagInput, setTagInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
@@ -64,10 +65,15 @@ export function CategoryRow({
       onAddTag(category, formatted);
     }
     
+    // 입력 필드는 초기화하지만 닫지 않음 (계속 입력 가능)
     setTagInput('');
-    setIsAddingTag(false);
     setShowSuggestions(false);
     setSelectedSuggestionIndex(0);
+    
+    // 포커스 유지
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
   };
 
   // 입력 변경 핸들러
@@ -103,6 +109,7 @@ export function CategoryRow({
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
+      e.stopPropagation();
       setTagInput('');
       setIsAddingTag(false);
       setShowSuggestions(false);

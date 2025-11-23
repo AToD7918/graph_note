@@ -153,7 +153,7 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
   const handleTitleBlur = () => {
     const trimmedTitle = localTitle.trim();
     if (trimmedTitle && trimmedTitle !== selectedNote.title) {
-      onChange({ title: trimmedTitle });
+      onChange(selectedNote.id, { title: trimmedTitle });
       setSaveStatus('saved');
       setLastSaved(new Date());
     } else if (!trimmedTitle) {
@@ -178,7 +178,7 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
   const handleSummaryChange = (e) => {
     const newValue = e.target.value;
     setLocalSummary(newValue);
-    onChange({ summary: newValue });
+    onChange(selectedNote.id, { summary: newValue });
     setSaveStatus('saved');
     setLastSaved(new Date());
   };
@@ -186,7 +186,7 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
   // 태그 변경 핸들러 (localStorage)
   const handleTagsChange = (newTags) => {
     setLocalTags(newTags);
-    onChange({ tags: newTags });
+    onChange(selectedNote.id, { tags: newTags });
     
     // 글로벌 인덱스 업데이트
     Object.entries(newTags).forEach(([category, tags]) => {

@@ -100,9 +100,15 @@ const GraphView = React.memo(function GraphView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
+  // 초기 로딩 시에만 fit 호출 (크기 변경 시에는 호출하지 않음)
+  const initialFitDone = useRef(false);
+  
   useEffect(() => { 
-    if (size.width && size.height) {
-      const timer = setTimeout(fit, 0);
+    if (size.width && size.height && !initialFitDone.current) {
+      const timer = setTimeout(() => {
+        fit();
+        initialFitDone.current = true;
+      }, 0);
       return () => clearTimeout(timer);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
