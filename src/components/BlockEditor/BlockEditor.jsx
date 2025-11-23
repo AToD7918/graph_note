@@ -238,17 +238,39 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
 
   // Handle Arrow Up - move to previous block
   const handleArrowUp = useCallback((blockId) => {
-    const previousBlockId = getAdjacentBlockId(blocks, blockId, 'up');
-    if (previousBlockId) {
-      focusBlock(previousBlockId);
+    const prevBlockId = getAdjacentBlockId(blocks, blockId, 'prev');
+    if (prevBlockId) {
+      focusBlock(prevBlockId);
+      // Move cursor to same position in previous block (or end if shorter)
+      setTimeout(() => {
+        const prevRef = blockRefs.current[prevBlockId];
+        const currentRef = blockRefs.current[blockId];
+        if (prevRef && prevRef.setSelectionRange && currentRef) {
+          const currentPos = currentRef.selectionStart;
+          const length = prevRef.value?.length || 0;
+          const targetPos = Math.min(currentPos, length);
+          prevRef.setSelectionRange(targetPos, targetPos);
+        }
+      }, 0);
     }
   }, [blocks, focusBlock]);
 
   // Handle Arrow Down - move to next block
   const handleArrowDown = useCallback((blockId) => {
-    const nextBlockId = getAdjacentBlockId(blocks, blockId, 'down');
+    const nextBlockId = getAdjacentBlockId(blocks, blockId, 'next');
     if (nextBlockId) {
       focusBlock(nextBlockId);
+      // Move cursor to same position in next block (or end if shorter)
+      setTimeout(() => {
+        const nextRef = blockRefs.current[nextBlockId];
+        const currentRef = blockRefs.current[blockId];
+        if (nextRef && nextRef.setSelectionRange && currentRef) {
+          const currentPos = currentRef.selectionStart;
+          const length = nextRef.value?.length || 0;
+          const targetPos = Math.min(currentPos, length);
+          nextRef.setSelectionRange(targetPos, targetPos);
+        }
+      }, 0);
     }
   }, [blocks, focusBlock]);
 
@@ -316,21 +338,56 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
       }
 
       case 'ArrowUp': {
-        const ref = blockRefs.current[blockId];
-        // Move up only if at first line
-        if (ref && ref.selectionStart === 0) {
-          e.preventDefault();
-          handleArrowUp(blockId);
-        }
+        // Always move to previous block
+        e.preventDefault();
+        handleArrowUp(blockId);
         break;
       }
 
       case 'ArrowDown': {
+        // Always move to next block
+        e.preventDefault();
+        handleArrowDown(blockId);
+        break;
+      }
+
+      case 'ArrowLeft': {
         const ref = blockRefs.current[blockId];
-        // Move down only if at last line
-        if (ref && ref.selectionStart === ref.value?.length) {
+        // Move to previous block if at the start
+        if (ref && ref.selectionStart === 0 && ref.selectionEnd === 0) {
           e.preventDefault();
-          handleArrowDown(blockId);
+          const prevBlockId = getAdjacentBlockId(blocks, blockId, 'prev');
+          if (prevBlockId) {
+            focusBlock(prevBlockId);
+            // Move cursor to end of previous block
+            setTimeout(() => {
+              const prevRef = blockRefs.current[prevBlockId];
+              if (prevRef && prevRef.setSelectionRange) {
+                const length = prevRef.value?.length || 0;
+                prevRef.setSelectionRange(length, length);
+              }
+            }, 0);
+          }
+        }
+        break;
+      }
+
+      case 'ArrowRight': {
+        const ref = blockRefs.current[blockId];
+        // Move to next block if at the end
+        if (ref && ref.selectionStart === ref.value?.length && ref.selectionEnd === ref.value?.length) {
+          e.preventDefault();
+          const nextBlockId = getAdjacentBlockId(blocks, blockId, 'next');
+          if (nextBlockId) {
+            focusBlock(nextBlockId);
+            // Move cursor to start of next block
+            setTimeout(() => {
+              const nextRef = blockRefs.current[nextBlockId];
+              if (nextRef && nextRef.setSelectionRange) {
+                nextRef.setSelectionRange(0, 0);
+              }
+            }, 0);
+          }
         }
         break;
       }
@@ -338,7 +395,7 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
       default:
         break;
     }
-  }, [blocks, handleEnter, handleBackspaceAtStart, handleArrowUp, handleArrowDown, handleBlockDelete]);
+  }, [blocks, handleEnter, handleBackspaceAtStart, handleArrowUp, handleArrowDown, handleBlockDelete, focusBlock]);
 
   // Handle block focus
   const handleBlockFocus = useCallback((blockId) => {
