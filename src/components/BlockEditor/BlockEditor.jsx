@@ -718,25 +718,57 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
   };
 
   return (
-    <div className="block-editor w-full max-w-4xl mx-auto py-8 px-4 relative min-h-[200px]">
+    <div
+      id="note-content-area"
+      className="block-editor w-full max-w-4xl mx-auto py-8 px-4 relative min-h-[200px]"
+      onMouseDown={e => {
+        // 빈 공간 클릭만 처리 (블록 내부 클릭은 무시)
+        if (e.target !== e.currentTarget) return;
+        if (blocks.length === 0) return;
+        const lastBlock = blocks[blocks.length - 1];
+        if (lastBlock.type === BLOCK_TYPES.TEXT) {
+          setFocusedBlockId(lastBlock.id);
+          setTimeout(() => {
+            const ref = blockRefs.current[lastBlock.id];
+            if (ref && ref.focus) {
+              ref.focus();
+              if (ref.setSelectionRange) {
+                const len = ref.value ? ref.value.length : 0;
+                ref.setSelectionRange(len, len);
+              }
+            }
+          }, 0);
+        } else {
+          const newBlock = createBlock(BLOCK_TYPES.TEXT, '');
+          setBlocks(prevBlocks => {
+            const newBlocks = insertBlock(prevBlocks, newBlock, prevBlocks.length);
+            setTimeout(() => {
+              setFocusedBlockId(newBlock.id);
+              const ref = blockRefs.current[newBlock.id];
+              if (ref && ref.focus) {
+                ref.focus();
+                if (ref.setSelectionRange) {
+                  ref.setSelectionRange(0, 0);
+                }
+              }
+            }, 0);
+            return newBlocks;
+          });
+        }
+      }}
+    >
       <div className="space-y-1">
         {blocks.map((block, index) => renderBlock(block, index))}
       </div>
-
-      {/* Empty state */}
-      {blocks.length === 0 && (
-        <div className="text-gray-400 text-center py-8">
-          Press Enter to start writing...
-        </div>
-      )}
-
-      {/* Slash command menu */}
+      
+      {/* Render slash command menu */}
       {slashMenuState.isOpen && (
         <SlashCommandMenu
+          blockId={slashMenuState.blockId}
           query={slashMenuState.query}
+          position={slashMenuState.position}
           onSelect={handleSlashCommandSelect}
           onClose={closeSlashMenu}
-          position={slashMenuState.position}
         />
       )}
     </div>
