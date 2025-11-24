@@ -14,9 +14,43 @@ import katex from 'katex';
  */
 export const CodeBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, autoFocus, readOnly }, ref) => {
   const language = block.metadata?.language || 'javascript';
+  const [height, setHeight] = useState(block.metadata?.height || 70);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef(null);
+  const startOffsetRef = useRef(0);
+  
+  // 리사이징 핸들러
+  useEffect(() => {
+    if (!isResizing) return;
+    
+    const handleMouseMove = (e) => {
+      if (resizeRef.current) {
+        const rect = resizeRef.current.getBoundingClientRect();
+        const newHeight = Math.max(70, e.clientY - rect.top - startOffsetRef.current);
+        setHeight(newHeight);
+      }
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      // 높이를 metadata에 저장
+      if (onChange) {
+        const newMetadata = { ...block.metadata, height };
+        onChange(block.content, newMetadata);
+      }
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, height, onChange, block.content, block.metadata]);
   
   return (
-    <div className="code-block my-2">
+    <div className="code-block my-2 relative" ref={resizeRef}>
       {/* Language selector */}
       <div className="flex items-center gap-2 px-3 py-1 bg-gray-800 rounded-t text-sm">
         <select
@@ -55,9 +89,33 @@ export const CodeBlock = forwardRef(({ block, onChange, onKeyDown, onFocus, auto
         autoFocus={autoFocus}
         readOnly={readOnly}
         placeholder="Enter code..."
-        className="w-full px-4 py-3 bg-gray-900 text-gray-100 font-mono text-sm rounded-b resize-none min-h-[100px] outline-none border-none"
-        style={{ fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace' }}
+        className="w-full px-4 py-3 bg-gray-900 text-gray-100 font-mono text-sm resize-none outline-none border-none"
+        style={{ 
+          fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
+          height: `${height}px`,
+          borderBottomLeftRadius: readOnly ? '0.25rem' : '0',
+          borderBottomRightRadius: readOnly ? '0.25rem' : '0'
+        }}
       />
+      
+      {/* 리사이즈 핸들 */}
+      {!readOnly && (
+        <div
+          className="w-full h-2 bg-gray-800 hover:bg-gray-700 cursor-ns-resize flex items-center justify-center rounded-b group"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            if (resizeRef.current) {
+              const rect = resizeRef.current.getBoundingClientRect();
+              const textareaHeight = height;
+              // 마우스 클릭 위치와 textarea 하단의 차이 계산
+              startOffsetRef.current = e.clientY - rect.top - textareaHeight;
+            }
+            setIsResizing(true);
+          }}
+        >
+          <div className="w-8 h-1 bg-gray-600 rounded group-hover:bg-gray-500" />
+        </div>
+      )}
     </div>
   );
 });

@@ -115,7 +115,28 @@ export default function DraggableBlock({
       onDrop={handleDrop}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={() => onFocus && onFocus(block.id)}
+      onMouseDown={(e) => {
+        // 텍스트 입력 영역을 클릭한 경우
+        const target = e.target;
+        if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+          // 블록 포커스 먼저 설정
+          onFocus && onFocus(block.id);
+          
+          // 다음 프레임에서 텍스트 입력 필드에 포커스 (블록 포커스가 텍스트 포커스를 방해하지 않도록)
+          setTimeout(() => {
+            target.focus();
+            // 클릭한 위치에 커서 위치 설정
+            if (target.setSelectionRange && e.detail === 1) {
+              const pos = target.selectionStart;
+              target.setSelectionRange(pos, pos);
+            }
+          }, 0);
+          return;
+        }
+        
+        // 다른 영역을 클릭한 경우 블록 포커스만 설정
+        onFocus && onFocus(block.id);
+      }}
       onKeyDown={handleKeyDown}
     >
       {/* Block container with focus/hover styling */}
