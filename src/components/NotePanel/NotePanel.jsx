@@ -342,14 +342,14 @@ export const NotePanel = React.memo(function NotePanel({ selectedNote, onClose, 
               id="note-content-area"
               className="flex-1 bg-black/40 border border-white/10 rounded overflow-y-auto min-h-[300px] cursor-text"
               onClick={(e) => {
-                // Focus last block when clicking empty area (not on a block)
+                // Focus or create last text block when clicking empty area (not on a block)
                 const clickedOnBlock = e.target.closest('.draggable-block-wrapper') || 
                                       e.target.closest('input') || 
                                       e.target.closest('textarea') ||
                                       e.target.closest('button');
                 
-                if (!clickedOnBlock && blockEditorRef.current) {
-                  blockEditorRef.current.focusLastBlock();
+                if (!clickedOnBlock && blockEditorRef.current && blockEditorRef.current.focusOrCreateLastTextBlock) {
+                  blockEditorRef.current.focusOrCreateLastTextBlock();
                 }
               }}
             >

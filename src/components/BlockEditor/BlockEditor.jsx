@@ -114,6 +114,39 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
         const lastBlock = blocks[blocks.length - 1];
         focusBlock(lastBlock.id);
       }
+    },
+    focusOrCreateLastTextBlock: () => {
+      if (blocks.length === 0) return;
+      const lastBlock = blocks[blocks.length - 1];
+      if (lastBlock.type === BLOCK_TYPES.TEXT) {
+        focusBlock(lastBlock.id);
+        setTimeout(() => {
+          const refEl = blockRefs.current[lastBlock.id];
+          if (refEl && refEl.focus) {
+            refEl.focus();
+            if (refEl.setSelectionRange) {
+              const len = refEl.value ? refEl.value.length : 0;
+              refEl.setSelectionRange(len, len);
+            }
+          }
+        }, 0);
+      } else {
+        const newBlock = createBlock(BLOCK_TYPES.TEXT, '');
+        setBlocks(prevBlocks => {
+          const newBlocks = insertBlock(prevBlocks, newBlock, prevBlocks.length);
+          setTimeout(() => {
+            focusBlock(newBlock.id);
+            const refEl = blockRefs.current[newBlock.id];
+            if (refEl && refEl.focus) {
+              refEl.focus();
+              if (refEl.setSelectionRange) {
+                refEl.setSelectionRange(0, 0);
+              }
+            }
+          }, 0);
+          return newBlocks;
+        });
+      }
     }
   }), [blocks, focusBlock]);
 
