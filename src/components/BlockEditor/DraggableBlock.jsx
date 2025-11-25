@@ -50,6 +50,23 @@ export default function DraggableBlock({
         onDelete && onDelete(block.id);
       }
     }
+    // 텍스트 입력이 가능한 블록에 키 입력 시 텍스트 입력 영역에 포커스
+    const editableTypes = [
+      'text', 'heading1', 'heading2', 'heading3', 'bullet_list', 'numbered_list', 'todo_list', 'quote'
+    ];
+    if (isFocused && editableTypes.includes(block.type)) {
+      // 텍스트 입력 영역이 아니라면 포커스 이동
+      const inputEl = blockWrapperRef.current?.querySelector('textarea, input[type="text"]');
+      if (inputEl && document.activeElement !== inputEl) {
+        setTimeout(() => {
+          inputEl.focus();
+          if (inputEl.setSelectionRange) {
+            const len = inputEl.value ? inputEl.value.length : 0;
+            inputEl.setSelectionRange(len, len);
+          }
+        }, 0);
+      }
+    }
   };
 
   // Focus the wrapper when block is focused
