@@ -118,7 +118,17 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
     focusOrCreateLastTextBlock: () => {
       if (blocks.length === 0) return;
       const lastBlock = blocks[blocks.length - 1];
-      if (lastBlock.type === BLOCK_TYPES.TEXT) {
+      const editableTypes = [
+        BLOCK_TYPES.TEXT,
+        BLOCK_TYPES.HEADING1,
+        BLOCK_TYPES.HEADING2,
+        BLOCK_TYPES.HEADING3,
+        BLOCK_TYPES.BULLET_LIST,
+        BLOCK_TYPES.NUMBERED_LIST,
+        BLOCK_TYPES.TODO_LIST,
+        BLOCK_TYPES.QUOTE
+      ];
+      if (editableTypes.includes(lastBlock.type)) {
         focusBlock(lastBlock.id);
         setTimeout(() => {
           const refEl = blockRefs.current[lastBlock.id];
