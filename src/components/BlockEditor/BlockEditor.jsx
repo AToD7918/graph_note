@@ -130,7 +130,7 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
       ];
       if (editableTypes.includes(lastBlock.type)) {
         focusBlock(lastBlock.id);
-        setTimeout(() => {
+        window.requestAnimationFrame(() => {
           const refEl = blockRefs.current[lastBlock.id];
           if (refEl && refEl.focus) {
             refEl.focus();
@@ -139,21 +139,22 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
               refEl.setSelectionRange(len, len);
             }
           }
-        }, 0);
+        });
       } else {
         const newBlock = createBlock(BLOCK_TYPES.TEXT, '');
         setBlocks(prevBlocks => {
           const newBlocks = insertBlock(prevBlocks, newBlock, prevBlocks.length);
-          setTimeout(() => {
+          window.requestAnimationFrame(() => {
             focusBlock(newBlock.id);
             const refEl = blockRefs.current[newBlock.id];
             if (refEl && refEl.focus) {
               refEl.focus();
               if (refEl.setSelectionRange) {
-                refEl.setSelectionRange(0, 0);
+                const len = refEl.value ? refEl.value.length : 0;
+                refEl.setSelectionRange(len, len);
               }
             }
-          }, 0);
+          });
           return newBlocks;
         });
       }
@@ -252,7 +253,6 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
     if ([BLOCK_TYPES.BULLET_LIST, BLOCK_TYPES.NUMBERED_LIST, BLOCK_TYPES.TODO_LIST].includes(currentBlock.type)) {
       // If current block is empty, convert to text instead of continuing list
       if (!currentBlock.content || currentBlock.content.trim() === '') {
-        // Convert current empty list item to text and focus it
         setBlocks(prevBlocks => changeBlockType(prevBlocks, blockId, BLOCK_TYPES.TEXT));
         setTimeout(() => focusBlock(blockId), 0);
         return;
@@ -277,21 +277,44 @@ const BlockEditor = forwardRef(function BlockEditor({ initialBlocks = null, onCh
       // Update current block with content before cursor
       setBlocks(prevBlocks => {
         let newBlocks = updateBlockContent(prevBlocks, blockId, beforeCursor);
-        
         // Insert new block with content after cursor
         const newBlock = createBlock(BLOCK_TYPES.TEXT, afterCursor);
         newBlocks = insertBlock(newBlocks, newBlock, blockIndex + 1);
-        
         // Focus new block
-        setTimeout(() => focusBlock(newBlock.id), 0);
-        
+        window.requestAnimationFrame(() => {
+          focusBlock(newBlock.id);
+          // 커서 활성화: input/textarea에 포커스 후 커서 위치 지정
+          const ref = blockRefs.current[newBlock.id];
+          if (ref && ref.focus) {
+            ref.focus();
+            if (ref.setSelectionRange) {
+              // 커서를 맨 끝으로 이동
+              const length = ref.value?.length || 0;
+              ref.setSelectionRange(length, length);
+            }
+          }
+        });
         return newBlocks;
       });
     } else {
       // Insert new block with the determined type
       const newBlock = createBlock(newBlockType, '', newBlockMetadata);
-      setBlocks(prevBlocks => insertBlock(prevBlocks, newBlock, blockIndex + 1));
-      setTimeout(() => focusBlock(newBlock.id), 0);
+      setBlocks(prevBlocks => {
+        const newBlocks = insertBlock(prevBlocks, newBlock, blockIndex + 1);
+        window.requestAnimationFrame(() => {
+          focusBlock(newBlock.id);
+          // 커서 활성화: input/textarea에 포커스 후 커서 위치 지정
+          const ref = blockRefs.current[newBlock.id];
+          if (ref && ref.focus) {
+            ref.focus();
+            if (ref.setSelectionRange) {
+              const len = ref.value ? ref.value.length : 0;
+              ref.setSelectionRange(len, len);
+            }
+          }
+        });
+        return newBlocks;
+      });
     }
   }, [blocks, readOnly, focusBlock]);
 
