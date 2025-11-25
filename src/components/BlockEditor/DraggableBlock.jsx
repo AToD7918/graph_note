@@ -32,6 +32,7 @@ export default function DraggableBlock({
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [dragOverPosition, setDragOverPosition] = useState(null); // 'top' | 'bottom' | null
   const [showMenu, setShowMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const blockWrapperRef = useRef(null);
@@ -91,29 +92,45 @@ export default function DraggableBlock({
 
   const handleDragOver = (e) => {
     if (readOnly) return;
-    
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setIsDragOver(true);
+    // 마우스 위치에 따라 표시선 위치 결정
+    const rect = blockWrapperRef.current?.getBoundingClientRect();
+    if (rect) {
+      const mouseY = e.clientY;
+      const threshold = rect.height / 2;
+      if (mouseY < rect.top + threshold) {
+        setDragOverPosition('top');
+      } else {
+        setDragOverPosition('bottom');
+      }
+    }
   };
 
   const handleDragLeave = () => {
     setIsDragOver(false);
+    setDragOverPosition(null);
   };
 
   const handleDrop = (e) => {
     if (readOnly) return;
-    
     e.preventDefault();
     setIsDragOver(false);
-
+    let targetIndex = index;
+    if (dragOverPosition === 'bottom') {
+      targetIndex = index + 1;
+    }
+    setDragOverPosition(null);
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       const fromIndex = data.index;
-      const toIndex = index;
-
-      if (fromIndex !== toIndex && onMove) {
-        onMove(fromIndex, toIndex);
+      // 아래로 이동할 때는 targetIndex--
+      if (fromIndex < targetIndex) {
+        targetIndex--;
+      }
+      if (fromIndex !== targetIndex && onMove) {
+        onMove(fromIndex, targetIndex);
       }
     } catch (err) {
       console.error('Failed to parse drag data:', err);
@@ -126,23 +143,19 @@ export default function DraggableBlock({
       tabIndex={isFocused ? 0 : -1}
       className={`draggable-block-wrapper group relative transition-all duration-200 outline-none ${
         isDragging ? 'opacity-50' : ''
-      } ${isDragOver ? 'border-t-2 border-blue-500' : ''}`}
+      }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onMouseDown={(e) => {
-        // 텍스트 입력 영역을 클릭한 경우
+        // ...existing code...
         const target = e.target;
         if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
-          // 블록 포커스 먼저 설정
           onFocus && onFocus(block.id);
-          
-          // 다음 프레임에서 텍스트 입력 필드에 포커스 (블록 포커스가 텍스트 포커스를 방해하지 않도록)
           setTimeout(() => {
             target.focus();
-            // 클릭한 위치에 커서 위치 설정
             if (target.setSelectionRange && e.detail === 1) {
               const pos = target.selectionStart;
               target.setSelectionRange(pos, pos);
@@ -150,12 +163,17 @@ export default function DraggableBlock({
           }, 0);
           return;
         }
-        
-        // 다른 영역을 클릭한 경우 블록 포커스만 설정
         onFocus && onFocus(block.id);
       }}
       onKeyDown={handleKeyDown}
     >
+      {/* 드래그 오버 표시선 */}
+      {isDragOver && dragOverPosition === 'top' && (
+        <div className="absolute left-0 right-0 top-0 h-0.5 bg-blue-500 z-10 rounded-full" />
+      )}
+      {isDragOver && dragOverPosition === 'bottom' && (
+        <div className="absolute left-0 right-0 bottom-0 h-0.5 bg-blue-500 z-10 rounded-full" />
+      )}
       {/* Block container with focus/hover styling */}
       <div 
         className={`flex items-start gap-2 rounded-lg px-2 py-0.5 -mx-2 transition-all duration-200 ${
